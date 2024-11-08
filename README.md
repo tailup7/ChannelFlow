@@ -11,7 +11,7 @@ Turbulent flow between two parallel plates is called channel flow.
 ## Nondimensionalized Governing Equations
 ![ccc](https://github.com/user-attachments/assets/33ba14f5-5a8b-4cc6-8af6-57cb0de9b254)
 <br>
-boundary condition : x, z : periodic, y : wall (non-slip)
+boundary condition : x, z : periodic, y : wall (non-slip) <br>
 initial condition : fully developed turbulent flow is independent of initial condition
 
 <br>
