@@ -39,8 +39,8 @@
          file1='dns2'
          Ret = 300.d0   
          dt=  1.0d-4
-         iskip=4            
-         isave=10
+         iskip = 40            
+         isave = 100
          istop=iskip*isave   
          icount=0
          ICT=0
