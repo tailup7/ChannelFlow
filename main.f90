@@ -14,14 +14,14 @@
 !        x,z : periodic
 !        y : wall (non-slip) 
 !******************************************************************************************************************************
-
       program channelflowDNS
       parameter (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       character*3  CT(0:100)
       character*4  file1
+      double precision ::Ret,dt
       common /file1/file1 /RMS/URMSX,URMSC,VRMSC,WRMSC
-      common /RET/RET /dt/dt /STEP/ISTEP /TSTEP/TSTEP /START/ISTART
+      common /STEP/ISTEP /TSTEP/TSTEP /START/ISTART
       common /DIV/DIVX /COU/COMX /ENE/ENE /UME/UME,UMX
       common /ERRP/POIERR /ITRP/ITRP 
       data CT/'000', &      
@@ -37,10 +37,10 @@
       '091','092','093','094','095','096','097','098','099','100'/
 
          file1='dns2'
-         RET=300.D0   
-         dt=  1.0D-4
-         iskip=40            
-         isave=100
+         Ret = 300.d0   
+         dt=  1.0d-4
+         iskip=4            
+         isave=10
          istop=iskip*isave   
          icount=0
          ICT=0
@@ -51,19 +51,20 @@
       call SBRST1
       call SBRCHK
       write( 6,1100) ISTART,TSTEP,ITRP,POIERR,DIVX,COMX  &
-         ,UME,UMX,INT(RET*UME),INT(RET*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
+         ,UME,UMX,INT(Ret*UME),INT(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
  1000 FORMAT(3X,4HSTEP,7X,1HT,1X,4HITRP,4X,6HPOIerr,4X,6HDIVmax  &
       ,2X,6HCOUmax,3X,5HUmean,4X,4HUmax,4X,3HRem,4X,3HRex   &
       ,4X,6HEnergy,3X,5HU'max,5X,3HU'c,5X,3HV'c,5X,3HW'c)
  1100 FORMAT(I7,F8.4,I5,2E10.2,3F8.3,2I7,F10.5,4F8.4)
 
+      !!! main loop  
       do
          call SBRCON
          call SBRVIS
          if(icount >= 1) then                      
-            call SBRPRE(1.5D0,-0.5D0)               
+            call SBRPRE(1.5d0,-0.5d0)               
          else
-            call SBRPRE(1.0D0, 0.0D0)
+            call SBRPRE(1.0d0, 0.0d0)
          end if
          call SBRRHP                            
          ipstop=20
@@ -79,7 +80,7 @@
             call SBRST1
             call SBRCHK
             write( 6,1100) istep,tstep,ITRP,POIERR,DIVX,COMX  &
-               ,UME,UMX,INT(RET*UME),INT(RET*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
+               ,UME,UMX,INT(Ret*UME),INT(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
          end if
 
          if(mod(istep,iskip) == 0) then    
@@ -104,23 +105,28 @@
       SUBROUTINE SBRMSH
       PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /H/HX,HZ /Y/YV(0:NY),YP(0:NY1)
-      common /D/DX,DZ /DY/DY(NY) /RET/RET /DT/DT
+      double precision ::dx,dz,Lx,Lz,Ret,dt
+
+      common /Y/YV(0:NY),YP(0:NY1)
+      common /DY/DY(NY) 
+
+      dt=  1.0d-4
+
       call MESHY
       call MESHXZ
 
-      WRITE(6,1000) NX,HX,DX,RET*HX,RET*DX,NZ,HZ,DZ,RET*HZ,RET*DZ  &
-      ,NY,1.,DY(1),DY(NY/2),RET*DY(1),RET*DY(NY/2),YP(1),RET*YP(1)  &
-      ,INT(RET),DT
+      WRITE(6,1000) NX,LX,dx,Ret*LX,Ret*dx,NZ,LZ,dz,Ret*LZ,Ret*dz  &
+      ,NY,1.,DY(1),DY(NY/2),Ret*DY(1),Ret*DY(NY/2),YP(1),Ret*YP(1)  &
+      ,INT(Ret),dt
  1000 FORMAT(/10(1H*),"  IN SBR.MSH  ",10(1H*)/  &
-      /5X,"NX=",I4,5X,"HX=",F7.3,3X,"DX=",F7.5  &
-      ,5X,"HX+=",F7.1,3X,"DX+=",F7.3  &
-      /5X,"NZ=",I4,5X,"HZ=",F7.3,3X,"DZ=",F7.5  &
-      ,5X,"HZ+=",F7.1,3X,"DZ+=",F7.3  &
+      /5X,"NX=",I4,5X,"LX=",F7.3,3X,"dx=",F7.5  &
+      ,5X,"LX+=",F7.1,3X,"dx+=",F7.3  &
+      /5X,"NZ=",I4,5X,"LZ=",F7.3,3X,"dz=",F7.5  &
+      ,5X,"LZ+=",F7.1,3X,"dz+=",F7.3  &
       /5X,"NY=",I4,5X,"HY=",F7.3,3X,"DYmin=",F7.5,3X,"DYmax=",F7.5  &
       /30X,"DYmin+=",F6.3,3X,"DYmax+=",F6.2  &
       /5X,"YP(1)=",F7.5,3X,"YP(1)+=",F6.2  &
-      /5X,"RET=",I6/5X,"DT=",F9.5)
+      /5X,"Ret=",I6/5X,"dt=",F9.5)
 
       call MDQ1VN
       call MDQ1VD
@@ -135,18 +141,14 @@
       SUBROUTINE MESHXZ
       PARAMETER (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /H/HX,HZ /D/DX,DZ /RET/RET
+      double precision ::dx,dz,Lx,Lz,Ret                 
       common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
-      common /TXZA/TXA,TZA /BXZA/BXA,BZA 
-      common /CMPX/CM1X,C00X,CP1X /CMPZ/CM1Z,C00Z,CP1Z
-      DX=18.D0/RET
-      DZ= 9.D0/RET
-      HX=NX*DX
-      HZ=NZ*DZ
-      BXA=1.D0/DX
-      BZA=1.D0/DZ
-      TXA=BXA/2.D0
-      TZA=BZA/2.D0
+
+      Ret = 300.d0
+      dx = 18.d0/Ret
+      dz = 9.d0/Ret
+      LX = dble(NX)*dx
+      LZ = dble(NZ)*dz
 
 !  -----  List vectors to identify the neighbouring point   ---------
       do I=1,NX
@@ -155,20 +157,13 @@
          if(IP(I) > NX) IP(I)=IP(I)-NX
          if(IM(I) < 1) IM(I)=IM(I)+NX
       end do
-      do K=1,NZ
-         KP(K)=K+1
-         KM(K)=K-1
-         if(KP(K) > NZ) KP(K)=KP(K)-NZ
-         if(KM(K) < 1) KM(K)=KM(K)+NZ
+      do k = 1, NZ
+         KP(k) = k + 1
+         KM(k) = k - 1
+         if(KP(k) > NZ) KP(k) = KP(k) - NZ
+         if(KM(k) < 1) KM(k) = KM(k) + NZ
       end do
 
-!  ---  Parameters for finite-difference of Poisson equation----
-      CM1X= 1.D0/DX**2
-      C00X=-2.D0/DX**2
-      CP1X= 1.D0/DX**2
-      CM1Z= 1.D0/DZ**2
-      C00Z=-2.D0/DZ**2
-      CP1Z= 1.D0/DZ**2
       return
       end
 !---------------------------------------------------------------------
@@ -176,12 +171,12 @@
       SUBROUTINE MESHY
       PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /Y/YV(0:NY),YP(0:NY1) /DY/DY(NY) /DYC/DYC(NY-1)
-      ALG=0.95D0
-      AT=DLOG((1.D0+ALG)/(1.D0-ALG))/2.D0
+      common /Y/YV(0:NY),YP(0:NY1) /DY/DY(NY) /DYC/DYC(NY-1)      
+      ALG=0.95d0           
+      AT=dlog((1.D0+ALG)/(1.D0-ALG))/2.D0
       YV(0)=0.
       do J=1,NY-1
-         ETA=AT*(-1.D0+2.D0*DBLE(J)/DBLE(NY))
+         ETA=AT*(-1.d0 + 2.d0*dble(j)/dble(NY))      
          YV(J)=(DTANH(ETA)/ALG+1.D0)/2.D0
       end do
       YV(NY)=1.D0
@@ -224,15 +219,15 @@
 !---- FDM operators at V points using data on P points and AT walls ----
       SUBROUTINE MDQ1VD
       PARAMETER (NY=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)                      
       COMMON /Y/YV(0:NY),YP(0:NY1) 
       COMMON /D0V/D0VM(NY-1),D0VP(NY-1) /D1V/D1VM(0:NY),D1VP(0:NY)
       do j=1,NY-1
          DYV=YP(J+1)-YP(J)
          D0VM(J)=(YP(J+1)-YV(J))/DYV
          D0VP(J)=(YV(J)-YP(J))/DYV
-         D1VM(J)=-1.D0/DYV
-         D1VP(J)= 1.D0/DYV
+         D1VM(J)=-1.d0/DYV
+         D1VP(J)= 1.d0/DYV
       end do
 
 !!!!Caution!  Stencils are shifted at the wall point
@@ -249,7 +244,7 @@
       SUBROUTINE MDQ1P
       PARAMETER (NY=64,NY1=NY+1,NYH1=NY-1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      COMMON /Y/YV(0:NY),YP(0:NY1) /DY/DY(NY)
+      COMMON /Y/YV(0:NY),YP(0:NY1) /DY/DY(NY)             
       COMMON /D0P/D0PM(NY),D0PP(NY) /D1P/D1PM(NY),D1PP(NY)
       do j = 1,NY
          D0PM(J)=(YV(J)-YP(J))/DY(J)
@@ -302,9 +297,9 @@
       COMMON /DPP/DPPM(2:NY),DPP0(NY),DPPP(NY-1)
       COMMON /D1VN/D1VNM(0:NY),D1VNP(0:NY) /D1P/D1PM(NY),D1PP(NY)
       do j = 1,NY
-         if (J.GT. 1) DPPM(J)=D1PM(J)*D1VNM(J-1)
+         if (J > 1) DPPM(J)=D1PM(J)*D1VNM(J-1)
          DPP0(J)=D1PM(J)*D1VNP(J-1)+D1PP(J)*D1VNM(J)
-         if (J.LT.NY) DPPP(J)=D1PP(J)*D1VNP(J)
+         if (J < NY) DPPP(J)=D1PP(J)*D1VNP(J)
       end do
       return
       end
@@ -356,38 +351,42 @@
       return
       end
 ! ----------------------------------------------------------------------
-      SUBROUTINE SBRNLU
+      SUBROUTINE SBRNLU     !!!! calculate first component of convection term ( = UF)
       PARAMETER (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /UF/UF(NZ,NX,NY)
+      double precision :: dx,dz,Ret
+      common /UF/UF(NZ,NX,NY)                      
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
       common /W1/CX(NZ,NX,NY) /W2/CY(NZ,NX,0:NY) /W3/CZ(NZ,NX,NY)
-      common /TXZA/TXA,TZA /BXZA/BXA,BZA 
       common /D1V/D1VM(0:NY),D1VP(0:NY) /D0P/D0PM(NY),D0PP(NY)
       common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
 
-! ... CX:-U^XU_X  at P,  CZ:-W^XU_Z  at P
+      Ret=300.d0
+      dx = 18.d0/Ret      
+      dz = 9.d0/Ret
+! ... CX:-U^XU_X  at P  (U^X ... average of U in x direction  U_X ... differentiation of U in x direction)
+! ... CZ:-W^XU_Z  at P 
       do j = 1, Ny
          do i = 1, Nx
             do K=1, Nz
-               CX(K,I,J)=-TXA*(U(K,IM(I),J)+U(K,I,J))*(-U(K,IM(I),J)+U(K,I,J))
-               CZ(K,I,J)=-TZA*(W(K,I,J)+W(K,IP(I),J))*(-U(K,I,J)+U(KP(K),I,J))
+               CX(K,I,J)=-(U(K,IM(I),J)+U(K,I,J))*(-U(K,IM(I),J)+U(K,I,J))/(2.d0*dx)  ! u(du/dx)
+               CZ(K,I,J)=-(W(K,I,J)+W(K,IP(I),J))*(-U(K,I,J)+U(KP(K),I,J))/(2.d0*dz)  ! w(du/dz)
             end do
          end do
       end do
 
-! ... CY:-V^XU_Y  at UV
+! ... CY:-V^XU_Y  at UV  
       do j = 0, Ny
          if(J > 0.AND.J < NY) then
          do  i = 1, Nx
             do  k = 1, Nz
-               CY(K,I,J)=-(D1VM(J)*U(K,I,J)+D1VP(J)*U(K,I,J+1))*(V(K,I,J)+V(K,IP(I),J))/2.D0
+               CY(K,I,J)=-(D1VM(J)*U(K,I,J)+D1VP(J)*U(K,I,J+1))*(V(K,I,J)+V(K,IP(I),J))/2.d0  
             end do
          end do
          else
             do i = 1, Nx
                do  k = 1, Nz
-                  CY(K,I,J)=0.D0
+                  CY(K,I,J)=0.d0
                end do
             end do
          end if
@@ -396,24 +395,27 @@
       do j = 1, Ny
          do i = 1, Nx
             do k = 1, Nz
-               UF(K,I,J)=(CX(K,I,J)+CX(K,IP(I),J)+CZ(KM(K),I,J)+CZ(K,I,J))/2.D0+D0PM(J)*CY(K,I,J-1)+D0PP(J)*CY(K,I,J)
+               UF(K,I,J)=(CX(K,I,J)+CX(K,IP(I),J)+CZ(KM(K),I,J)+CZ(K,I,J))/2.d0+D0PM(J)*CY(K,I,J-1)+D0PP(J)*CY(K,I,J)
             end do
          end do
       end do
       return
       end
 ! ----------------------------------------------------------------------
-      SUBROUTINE SBRNLV
+      SUBROUTINE SBRNLV      !!!! calculate second component of convection term ( = VF)
       PARAMETER (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /VF/VF(NZ,NX,0:NY)
+      double precision::dx,dz,Ret
+      common /VF/VF(NZ,NX,0:NY)                    
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
       common /W1/CX(NZ,NX,NY) /W2/CY(NZ,NX,0:NY) /W3/CZ(NZ,NX,NY)
-      common /TXZA/TXA,TZA /BXZA/BXA,BZA 
       common /D0V/D0VM(NY-1),D0VP(NY-1) 
       common /D0P/D0PM(NY),D0PP(NY) /D1P/D1PM(NY),D1PP(NY)
       common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
 
+      Ret = 300.d0
+      dz = 9.d0/Ret
+      dx = 18.d0/Ret
 ! ... CY:-(V^Y*V_Y)^Y at P
       do j = 1, NY
          do  i = 1, NX
@@ -427,8 +429,8 @@
       do j = 1, Ny-1
          do i = 1, Nx
             do k = 1, Nz
-               CX(K,I,J)=-(D0VM(J)*U(K,I,J)+D0VP(J)*U(K,I,J+1))*BXA*(-V(K,I,J)+V(K,IP(I),J))
-               CZ(K,I,J)=-(D0VM(J)*W(K,I,J)+D0VP(J)*W(K,I,J+1))*BZA*(-V(K,I,J)+V(KP(K),I,J))
+               CX(K,I,J)=-(D0VM(J)*U(K,I,J)+D0VP(J)*U(K,I,J+1))*(-V(K,I,J)+V(K,IP(I),J)) / dx
+               CZ(K,I,J)=-(D0VM(J)*W(K,I,J)+D0VP(J)*W(K,I,J+1))*(-V(K,I,J)+V(KP(K),I,J)) / dz
             end do
          end do
       end do
@@ -445,22 +447,25 @@
       return
       end
 ! ----------------------------------------------------------------------
-      SUBROUTINE SBRNLW
+      SUBROUTINE SBRNLW     !!! calculate third component of convection term ( = WF)
       PARAMETER (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      double precision :: dx,dz,Ret
       common /WF/WF(NZ,NX,NY)
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
       common /W1/CX(NZ,NX,NY) /W2/CY(NZ,NX,0:NY) /W3/CZ(NZ,NX,NY)
-      common /TXZA/TXA,TZA /BXZA/BXA,BZA 
       common /D1V/D1VM(0:NY),D1VP(0:NY) /D0P/D0PM(NY),D0PP(NY)
       common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
 
+      Ret=300.d0
+      dx = 18.d0/Ret   
+      dz = 9.d0/Ret
 ! ... CX:-U^ZW_X  at UW,  CZ:-W^ZW_Z  at P
       do j = 1, Ny
          do i = 1, Nx
             do k = 1, Nz
-               CX(K,I,J)=-TXA*(U(K,I,J)+U(KP(K),I,J))*(-W(K,I,J)+W(K,IP(I),J))
-               CZ(K,I,J)=-TZA*(W(KM(K),I,J)+W(K,I,J))*(-W(KM(K),I,J)+W(K,I,J))
+               CX(K,I,J)=-(U(K,I,J)+U(KP(K),I,J))*(-W(K,I,J)+W(K,IP(I),J))/(2.d0*dx)
+               CZ(K,I,J)=-(W(KM(K),I,J)+W(K,I,J))*(-W(KM(K),I,J)+W(K,I,J))/(2.d0*dz)
             end do
          end do
       end do
@@ -486,7 +491,7 @@
       do j = 1, Ny
          do i = 1,Nx
             do k = 1, Nz
-               WF(K,I,J)=(CX(K,IM(I),J)+CX(K,I,J)+CZ(K,I,J)+CZ(KP(K),I,J))/2.D0  &
+               WF(K,I,J)=(CX(K,IM(I),J)+CX(K,I,J)+CZ(K,I,J)+CZ(KP(K),I,J))/2.d0  &
                         +D0PM(J)*CY(K,I,J-1)+D0PP(J)*CY(K,I,J)
             end do
          end do
@@ -501,57 +506,58 @@
       SUBROUTINE SBRVIS
       PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY) /RET/RET
+      double precision::Ret,dx,dz,C00
+      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY) 
       common /UF/UF(NZ,NX,NY) /VF/VF(NZ,NX,0:NY) /WF/WF(NZ,NX,NY)
       common /D2V/D2VM(NY-1),D2V0(NY-1),D2VP(NY-1) 
       common /D2P/D2PM(2:NY),D2P0(NY),D2PP(NY-1) 
-      common /IP/IP(NX) /IM/IM(NX) /CMPX/CM1X,C00X,CP1X
-      common /KP/KP(NZ) /KM/KM(NZ) /CMPZ/CM1Z,C00Z,CP1Z
+      common /IP/IP(NX) /IM/IM(NX) 
+      common /KP/KP(NZ) /KM/KM(NZ) 
+
+      Ret = 300.d0
+      dx = 18.d0/Ret
+      dz = 9.d0/Ret
 
       do j = 1, Ny
-         C00=C00X+C00Z+D2P0(J)
+         C00 = -2.d0/(dx**2) - 2.d0/(dz**2) + D2P0(J)
          if(J == 1) then
             do i = 1,Nx
                do k = 1,Nz
-                  UF(K,I,J)=UF(K,I,J)  &
-                     +(CM1X*U(K,IM(I),J)+CM1Z*U(KM(K),I,J)+C00*U(K,I,J)   &
-                     +CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J)+D2PP(J)*U(K,I,J+1))/RET   
+                  UF(K,I,J)=UF(K,I,J)  &                                   ! here, UF = (convection term) + (viscous term) 
+                     +(U(K,IM(I),J)/(dx**2) + U(KM(K),I,J)/(dz**2) + C00*U(K,I,J)   &
+                     +U(KP(K),I,J)/(dz**2) + U(K,IP(I),J)/(dx**2) + D2PP(J)*U(K,I,J+1))/Ret   
                   WF(K,I,J)=WF(K,I,J)  &
-                     +(CM1X*W(K,IM(I),J)+CM1Z*W(KM(K),I,J)+C00*W(K,I,J)   &
-                     +CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J)+D2PP(J)*W(K,I,J+1))/RET
+                     +(W(K,IM(I),J)/(dx**2) + W(KM(K),I,J)/(dz**2) + C00*W(K,I,J)   &
+                     +W(KP(K),I,J)/(dz**2) + W(K,IP(I),J)/(dx**2) + D2PP(J)*W(K,I,J+1))/Ret
                end do
             end do
-
+         else if(J < NY) then
+            do i = 1, Nx
+               do k = 1, Nz
+                  UF(K,I,J)=UF(K,I,J)+(D2PM(J)*U(K,I,J-1) + U(K,IM(I),J)/(dx**2) + U(KM(K),I,J)/(dz**2)  &
+                        +C00*U(K,I,J)+U(KP(K),I,J)/(dz**2) + U(K,IP(I),J)/(dx**2) + D2PP(J)*U(K,I,J+1))/Ret
+                  WF(K,I,J)=WF(K,I,J)+(D2PM(J)*W(K,I,J-1) + W(K,IM(I),J)/(dx**2) + W(KM(K),I,J)/(dz**2) &
+                        +C00*W(K,I,J)+W(KP(K),I,J)/(dz**2) + W(K,IP(I),J)/(dx**2) + D2PP(J)*W(K,I,J+1))/Ret
+               end do
+            end do
          else
-            if(J < NY) then
-               do i = 1, Nx
-                  do k = 1, Nz
-                     UF(K,I,J)=UF(K,I,J)+(D2PM(J)*U(K,I,J-1)+CM1X*U(K,IM(I),J)+CM1Z*U(KM(K),I,J)  &
-                           +C00*U(K,I,J)+CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J)+D2PP(J)*U(K,I,J+1))/RET
-                     WF(K,I,J)=WF(K,I,J)+(D2PM(J)*W(K,I,J-1)+CM1X*W(K,IM(I),J)+CM1Z*W(KM(K),I,J) &
-                           +C00*W(K,I,J)+CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J)+D2PP(J)*W(K,I,J+1))/RET
-                  end do
+            do i = 1, NX
+               do k = 1, NZ
+                  UF(K,I,J)=UF(K,I,J)+(D2PM(J)*U(K,I,J-1) + U(K,IM(I),J)/(dx**2) + U(KM(K),I,J)/(dz**2) &
+                        +C00*U(K,I,J)+U(KP(K),I,J)/(dz**2) + U(K,IP(I),J)/(dx**2) )/Ret
+                  WF(K,I,J)=WF(K,I,J)+(D2PM(J)*W(K,I,J-1) + W(K,IM(I),J)/(dx**2) + W(KM(K),I,J)/(dz**2)  &
+                        +C00*W(K,I,J)+W(KP(K),I,J)/(dz**2) + W(K,IP(I),J)/(dx**2))/Ret
                end do
-
-            else
-               do I=1,NX
-                  do K=1,NZ
-                     UF(K,I,J)=UF(K,I,J)+(D2PM(J)*U(K,I,J-1)+CM1X*U(K,IM(I),J)+CM1Z*U(KM(K),I,J) &
-                           +C00*U(K,I,J)+CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J))/RET
-                     WF(K,I,J)=WF(K,I,J)+(D2PM(J)*W(K,I,J-1)+CM1X*W(K,IM(I),J)+CM1Z*W(KM(K),I,J)  &
-                           +C00*W(K,I,J)+CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J))/RET 
-                  end do
-               end do
-            end if
+            end do
          end if
       end do
 
       do j = 1,Ny-1
-         C00=C00X+C00Z+D2V0(J)
+         C00 = -2.d0/(dx**2) - 2.d0/(dz**2) + D2V0(J)
          do i = 1, Nx
             do k = 1, Nz
-               VF(K,I,J)=VF(K,I,J)+(D2VM(J)*V(K,I,J-1)+CM1X*V(K,IM(I),J)+CM1Z*V(KM(K),I,J)  &
-                     +C00*V(K,I,J)+CP1Z*V(KP(K),I,J)+CP1X*V(K,IP(I),J)+D2VP(J)*V(K,I,J+1))/RET
+               VF(K,I,J)=VF(K,I,J)+(D2VM(J)*V(K,I,J-1) + V(K,IM(I),J)/(dx**2) + V(KM(K),I,J)/(dz**2)  &
+                     +C00*V(K,I,J)+V(KP(K),I,J)/(dz**2) + V(K,IP(I),J)/(dx**2) + D2VP(J)*V(K,I,J+1))/Ret
             end do
          end do
       end do
@@ -565,17 +571,21 @@
       SUBROUTINE SBRPRE(AB,BB)
       PARAMETER (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /DT/DT /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
+      double precision::dt
+      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
       common /UF/UF(NZ,NX,NY) /VF/VF(NZ,NX,0:NY) /WF/WF(NZ,NX,NY)
       common /UB/UB(NZ,NX,NY) /VB/VB(NZ,NX,NY-1) /WB/WB(NZ,NX,NY)
-      DAB=AB*DT
-      DBB=BB*DT
+
+      dt=  1.0d-4
+
+      DAB = AB*dt
+      DBB = BB*dt
       do j = 1,Ny
          do i = 1,Nx
             do k = 1, Nz
-               UF(K,I,J)=UF(K,I,J)+2.D0
-               U(K,I,J)=U(K,I,J)+DAB*UF(K,I,J)+DBB*UB(K,I,J)
-               W(K,I,J)=W(K,I,J)+DAB*WF(K,I,J)+DBB*WB(K,I,J)
+               UF(K,I,J)=UF(K,I,J)+2.d0                                 !! fractional step method !!
+               U(K,I,J)=U(K,I,J)+DAB*UF(K,I,J)+DBB*UB(K,I,J)            !! 2nd order Adams Bashforth
+               W(K,I,J)=W(K,I,J)+DAB*WF(K,I,J)+DBB*WB(K,I,J)          
                UB(K,I,J)=UF(K,I,J)
                WB(K,I,J)=WF(K,I,J)
             end do
@@ -598,17 +608,24 @@
 ! *********************************************************************
 
 ! --- R.H.S. FOR SCALER POTANTIAL -------------------------------------
-      SUBROUTINE SBRRHP
+      SUBROUTINE SBRRHP                   !!!calculate right hand side of poisson Eq
       PARAMETER (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      double precision ::dx,dz,Ret,dt
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /W3/Q(NZ,NX,NY) /DT/DT /D/DX,DZ
+      common /W3/Q(NZ,NX,NY)  
       common /D1P/D1PM(NY),D1PP(NY) /IM/IM(NX) /KM/KM(NZ)
+
+      dt=  1.0d-4
+      Ret=300.d0
+      dx = 18.d0/Ret
+      dz = 9.d0/Ret
+
       do j = 1,Ny
          do i = 1,Nx
             do k = 1,Nz
-               Q(K,I,J)=((-U(K,IM(I),J)+U(K,I,J))/DX+D1PM(J)*V(K,I,J-1)+D1PP(J)*V(K,I,J)  &
-                        +(-W(KM(K),I,J)+W(K,I,J))/DZ )/DT
+               Q(K,I,J)=((-U(K,IM(I),J)+U(K,I,J))/dx+D1PM(J)*V(K,I,J-1)+D1PP(J)*V(K,I,J)  &
+                        +(-W(KM(K),I,J)+W(K,I,J))/dz )/dt                   !!!right hand side of poisson Eq
             end do
          end do
       end do
@@ -622,12 +639,19 @@
       SUBROUTINE SBRSOR(ISOR)                                     
       PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      double precision::Ret,dz,dx,c00
       common /DPP/DPPM(2:NY),DPP0(NY),DPPP(NY-1)
       common /P/P(NZ,NX,NY) /W3/Q(NZ,NX,NY) /ERRP/POIERR /ITRP/ITRP
-      common /IP/IP(NX) /IM/IM(NX) /CMPX/CM1X,C00X,CP1X
-      common /KP/KP(NZ) /KM/KM(NZ) /CMPZ/CM1Z,C00Z,CP1Z
+      common /IP/IP(NX) /IM/IM(NX) 
+      common /KP/KP(NZ) /KM/KM(NZ) 
+
+      Ret=300.d0
+      dz = 9.d0/Ret
+      dx = 18.d0/Ret
+
       ITRP=0
       SUMS=0.D0
+
       do j = 1,Ny
          do i = 1, Nx
             do k= 1, Nz
@@ -640,13 +664,13 @@
          ITRP=ITRP+1
          SUMR=0.
          do j = 1,Ny
-            C00=C00X+C00Z+DPP0(J)
+            C00 = -2.d0/(dx**2) - 2.d0/(dz**2) + DPP0(J)
             DPC=-1.5D0/C00
             if(J == 1) then
                do i = 1,Nx
                   do k = 1, Nz
-                     RESI=CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J)  &
-                           +CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)+DPPP(J)*P(K,I,J+1)  &
+                     RESI = P(K,IM(I),J)/(dx**2) + P(KM(K),I,J)/(dz**2) + C00*P(K,I,J)  &
+                           +P(KP(K),I,J)/(dz**2) + P(K,IP(I),J)/(dx**2) +DPPP(J)*P(K,I,J+1)  &
                            -Q(K,I,J)
                      P(K,I,J)=P(K,I,J)+RESI*DPC
                      SUMR=SUMR+RESI**2
@@ -657,8 +681,8 @@
                if(J < NY) then
                   do i = 1, Nx
                      do k = 1, Nz
-                        RESI=DPPM(J)*P(K,I,J-1)+CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J) &
-                              +CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)+DPPP(J)*P(K,I,J+1)-Q(K,I,J)
+                        RESI=DPPM(J)*P(K,I,J-1) + P(K,IM(I),J)/(dx**2) + P(KM(K),I,J)/(dz**2) + C00*P(K,I,J) &
+                              +P(KP(K),I,J)/(dz**2) + P(K,IP(I),J)/(dx**2) +DPPP(J)*P(K,I,J+1)-Q(K,I,J)
                         P(K,I,J)=P(K,I,J)+RESI*DPC
                         SUMR=SUMR+RESI**2
                      end do
@@ -667,8 +691,8 @@
                else
                   do i = 1,Nx
                      do k = 1,Nz
-                        RESI=DPPM(J)*P(K,I,J-1)+CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)  &
-                              +C00*P(K,I,J)+CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)  &
+                        RESI=DPPM(J)*P(K,I,J-1) + P(K,IM(I),J)/(dx**2) + P(KM(K),I,J)/(dz**2)  &
+                              +C00*P(K,I,J)+P(KP(K),I,J)/(dz**2) + P(K,IP(I),J)/(dx**2)  &
                               -Q(K,I,J)
                         P(K,I,J)=P(K,I,J)+RESI*DPC
                         SUMR=SUMR+RESI**2
@@ -693,11 +717,18 @@
       SUBROUTINE SBRCOR
       PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      double precision::dx,dz,Ret,dt
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /P/P(NZ,NX,NY) /DT/DT /D/DX,DZ /DY/DY(NY)
+      common /P/P(NZ,NX,NY) /DY/DY(NY)
       common /IP/IP(NX) /KP/KP(NZ) /D1VN/D1VNM(0:NY),D1VNP(0:NY)
-      TX=DT/DX
-      TZ=DT/DZ
+
+      dt=  1.0d-4
+      Ret=300.d0
+      dx = 18.d0/Ret
+      dz = 9.d0/Ret
+
+      TX=dt/dx
+      TZ=dt/dz
       do j = 1,Ny
          do i=1,Nx
             do k = 1,Nz
@@ -710,18 +741,33 @@
       do j=1,Ny-1
          do i=1,Nx
             do k=1,Nz
-               V(K,I,J)=V(K,I,J)-DT*(D1VNM(J)*P(K,I,J)+D1VNP(J)*P(K,I,J+1))               
+               V(K,I,J)=V(K,I,J)-dt*(D1VNM(J)*P(K,I,J)+D1VNP(J)*P(K,I,J+1))               
             end do
          end do
       end do
       return
       end
 
+!**********************************************************************
+!*       calculate Q-criterion                                        * 
+!**********************************************************************
+!      subroutine Q_criterion (u,v,w,dx,dy,dz)
+!      implicit none
+!      integer,parameter::NX=64,NY=64,NZ=64
+!      integer::i,j,k
+!      double precision::dx,dz,Q
+!      double precision::dy(1:NY)
+!      double precision::u(1:NZ,1:NX,1:NY),v(1:NZ,1:NX,0:NY),w(1:NZ,1:NX,1:NY)
+!
+!      return
+!      end subroutine Q_criterion
+
+
 ! *********************************************************************
 ! *     SBR. UMR  :  MEAN & RMS VALUES                                *
 ! *********************************************************************
 
-      SUBROUTINE SBRUMR
+      SUBROUTINE SBRUMR                   
       PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
@@ -731,13 +777,13 @@
       common /BVV/BVV2(0:NY),BVV3(0:NY),BVV4(0:NY)
       common /BVW/BVW2(NY),BVW3(NY),BVW4(NY)
       ARXZ=1./DBLE(NX*NZ)
-      do J=1,NY
+      do j = 1, NY
          SUMU1=0.D0
          SUMU2=0.D0
          SUMW1=0.D0
          SUMW2=0.D0
-         do i = 1,Nx
-            do k = 1,Nz
+         do i = 1, NX
+            do k = 1, NZ
                SUMU1=SUMU1+U(K,I,J)
                SUMU2=SUMU2+U(K,I,J)**2
                SUMW1=SUMW1+W(K,I,J)
@@ -749,7 +795,7 @@
          WM(J)=ARXZ*SUMW1
          BVW2(J)=ARXZ*SUMW2
       end do
-
+                        
       do j = 1,Ny-1
          SUMV1=0.D0
          SUMV2=0.D0
@@ -758,7 +804,7 @@
             do k = 1,Nz
                SUMV1=SUMV1+V(K,I,J)
                SUMV2=SUMV2+V(K,I,J)**2
-               SUMUV=SUMUV+(D0VM(J)*U(K,I,J)+D0VP(J)*U(K,I,J+1))*(V(K,I,J)+V(K,IP(I),J))
+               SUMUV=SUMUV+(D0VM(J)*U(K,I,J)+D0VP(J)*U(K,I,J+1))*(V(K,I,J)+V(K,IP(I),J))  
             end do
          end do
          VM(J)=ARXZ*SUMV1
@@ -772,7 +818,7 @@
 ! *     SBR. STT  :  TURBULENCE STATISTICS                            *
 ! *********************************************************************
 
-      SUBROUTINE SBRST1
+      SUBROUTINE SBRST1           
       PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       common /UM/UM(NY),VM(0:NY),WM(NY) /PM/PM(NY)
@@ -783,21 +829,21 @@
       common /BVV/BVV2(0:NY),BVV3(0:NY),BVV4(0:NY)
       common /BVW/BVW2(NY),BVW3(NY),BVW4(NY)
       common /BVP/BVP2(NY)
-      ENE=0.D0
-      UME=0.D0
-      UMX=0.D0
-      URMSX=0.D0
+      ENE=0.d0
+      UME=0.d0
+      UMX=0.d0
+      URMSX=0.d0
       do j = 1,Ny
-         UR(J)=DSQRT(BVU2(J)-UM(J)**2)
-         WR(J)=DSQRT(BVW2(J)-WM(J)**2)
-         PR(J)=DSQRT(BVP2(J)-PM(J)**2)
+         UR(J)=dsqrt(BVU2(J)-UM(J)**2)
+         WR(J)=dsqrt(BVW2(J)-WM(J)**2)
+         PR(J)=dsqrt(BVP2(J)-PM(J)**2)
          ENE=ENE+DY(J)*(UR(J)**2+WR(J)**2)
          UME=UME+DY(J)*UM(J)
          UMX=DMAX1(UMX,UM(J))
          URMSX=DMAX1(URMSX,UR(J))
       end do
       do j = 1,Ny-1
-         VR(J)=DSQRT(BVV2(J)-VM(J)**2)
+         VR(J)=dsqrt(BVV2(J)-VM(J)**2)
          ENE=ENE+DYC(J)*VR(J)**2
       end do
       URMSC=(UR(NY/2)+UR(NY/2+1))/2.D0
@@ -814,24 +860,31 @@
       SUBROUTINE SBRCHK
       PARAMETER (NX=64,NY=64,NZ=64)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /D/DX,DZ /DY/DY(NY) /DT/DT /DIV/DIVX /COU/COMX
+      double precision::dx,dz,Ret,dt
+      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)      
+      common /DY/DY(NY) /DIV/DIVX /COU/COMX
       common /D0P/D0PM(NY),D0PP(NY) /D1P/D1PM(NY),D1PP(NY)
       common /UR/UR(NY),VR(0:NY),WR(NY)
       common /IM/IM(NX) /KM/KM(NZ)
+
+      dt=  1.0d-4
+      Ret=300.d0
+      dx = 18.d0/Ret
+      dz = 9.d0/Ret
+
       DIVX=0.d0
       COMX=0.d0
       do j = 1,Ny
-         DNOMAL=(DX*DY(J)*DZ)**(1.D0/3.D0)/UR(J)
+         DNOMAL=(dx*DY(J)*dz)**(1.D0/3.D0)/UR(J)
          do i = 1,Nx
             do k = 1,Nz
-            DIV=(-U(K,IM(I),J)+U(K,I,J))/DX+D1PM(J)*V(K,I,J-1)+D1PP(J)*V(K,I,J)  &
-               +(-W(KM(K),I,J)+W(K,I,J))/DZ
+            DIV=(-U(K,IM(I),J)+U(K,I,J))/dx+D1PM(J)*V(K,I,J-1)+D1PP(J)*V(K,I,J)  &
+               +(-W(KM(K),I,J)+W(K,I,J))/dz
             UCP=(U(K,IM(I),J)+U(K,I,J))/2.D0
             WCP=(W(KM(K),I,J)+W(K,I,J))/2.D0
             VCP=D0PM(J)*V(K,I,J-1)+D0PP(J)*V(K,I,J)
             DIVX=DMAX1(DIVX,DNOMAL*DIV)
-            COU=DT*(DABS(UCP)/DX+DABS(VCP)/DY(J)+DABS(WCP)/DZ)
+            COU = dt*(DABS(UCP)/dx+DABS(VCP)/DY(J)+DABS(WCP)/dz)
             COMX=DMAX1(COMX,COU)
             end do
          end do
@@ -849,12 +902,16 @@
       character*3  CT
       character*4  FILE1
       character(9) :: FileName='output/t_'                     
-      integer :: i,j,k                                       
+      integer :: i,j,k             
+      double precision::dx,dz,Ret                          
       common /FILE1/FILE1 /STEP/ISTEP /TSTEP/TSTEP
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /P/P(NZ,NX,NY) 
-      common /D/DX,DZ                                    
+      common /P/P(NZ,NX,NY)                                 
       common /Y/YV(0:NY),YP(0:NY1)                   
+
+      Ret=300.d0
+      dx = 18.d0/Ret
+      dz = 9.d0/Ret
 
       open(20, file=Filename//CT//'.vtk', status='unknown')
 
