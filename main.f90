@@ -47,10 +47,10 @@
       call SBRMSH
       call SBRDTR(CT(ICT))    
       write( 6,1000)
-        call SBRUMR
-        call SBRST1
-        call SBRCHK
-        write( 6,1100) ISTART,TSTEP,ITRP,POIERR,DIVX,COMX  &
+      call SBRUMR
+      call SBRST1
+      call SBRCHK
+      write( 6,1100) ISTART,TSTEP,ITRP,POIERR,DIVX,COMX  &
          ,UME,UMX,INT(RET*UME),INT(RET*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
  1000 FORMAT(3X,4HSTEP,7X,1HT,1X,4HITRP,4X,6HPOIerr,4X,6HDIVmax  &
       ,2X,6HCOUmax,3X,5HUmean,4X,4HUmax,4X,3HRem,4X,3HRex   &
@@ -152,14 +152,14 @@
       do I=1,NX
          IP(I)=I+1
          IM(I)=I-1
-           if(IP(I).GT.NX) IP(I)=IP(I)-NX
-           if(IM(I).LT. 1) IM(I)=IM(I)+NX
+         if(IP(I) > NX) IP(I)=IP(I)-NX
+         if(IM(I) < 1) IM(I)=IM(I)+NX
       end do
       do K=1,NZ
          KP(K)=K+1
          KM(K)=K-1
-           if(KP(K).GT.NZ) KP(K)=KP(K)-NZ
-           if(KM(K).LT. 1) KM(K)=KM(K)+NZ
+         if(KP(K) > NZ) KP(K)=KP(K)-NZ
+         if(KM(K) < 1) KM(K)=KM(K)+NZ
       end do
 
 !  ---  Parameters for finite-difference of Poisson equation----
@@ -194,10 +194,10 @@
       YP(NY1)=2.D0*YV(NY)-YP(NY)
 
       do j = 1,NY
-        DY(J)=-YV(J-1)+YV(J)
+         DY(J)=-YV(J-1)+YV(J)
       end do
       do j = 1,NY-1
-        DYC(J)=-YP(J)+YP(J+1)
+         DYC(J)=-YP(J)+YP(J+1)
       end do
       return
       end
@@ -322,21 +322,21 @@
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
       common /P/P(NZ,NX,NY) 
       open(10,file=file1//CT//'u.d',status='old',form='formatted')     
-        read(10,1000) istart,tstep           
-        read(10,2000) U
-        close(10)
+         read(10,1000) istart,tstep           
+         read(10,2000) U
+      close(10)
       open(10,file=file1//CT//'v.d',status='old',form='formatted')
-        read(10,1000) istart,tstep
-        read(10,2000) V
-        close(10)
+         read(10,1000) istart,tstep
+         read(10,2000) V
+      close(10)
       open(10,file=file1//CT//'w.d',status='old',form='formatted')
-        read(10,1000) istart,tstep
-        read(10,2000) W
-        close(10)
+         read(10,1000) istart,tstep
+         read(10,2000) W
+      close(10)
       open(10,file=FILE1//CT//'p.d',status='old',form='formatted')
-        read(10,1000) istart,tstep
-        read(10,3000) P
-        close(10)
+         read(10,1000) istart,tstep
+         read(10,3000) P
+      close(10)
  1000 format(I10,F12.6)
  2000 format(8F10.6)   
  3000 format(8F10.5)
@@ -350,9 +350,9 @@
 ! *********************************************************************
 
       SUBROUTINE SBRCON
-        call SBRNLU
-        call SBRNLV
-        call SBRNLW
+      call SBRNLU
+      call SBRNLV
+      call SBRNLW
       return
       end
 ! ----------------------------------------------------------------------
@@ -378,7 +378,7 @@
 
 ! ... CY:-V^XU_Y  at UV
       do j = 0, Ny
-         if(J.GT.0.AND.J.LT.NY) then
+         if(J > 0.AND.J < NY) then
          do  i = 1, Nx
             do  k = 1, Nz
                CY(K,I,J)=-(D1VM(J)*U(K,I,J)+D1VP(J)*U(K,I,J+1))*(V(K,I,J)+V(K,IP(I),J))/2.D0
@@ -417,7 +417,7 @@
 ! ... CY:-(V^Y*V_Y)^Y at P
       do j = 1, NY
          do  i = 1, NX
-            do  K=1, NZ
+            do  K= 1, NZ
                CY(K,I,J)=-(D0PM(J)*V(K,I,J-1)+D0PP(J)*V(K,I,J))*(D1PM(J)*V(K,I,J-1)+D1PP(J)*V(K,I,J))
             end do
          end do
@@ -438,7 +438,7 @@
          do i = 1, Nx
             do k = 1, Nz
                VF(K,I,J)=(CX(K,IM(I),J)+CX(K,I,J)+CZ(KM(K),I,J)+CZ(K,I,J))/2.D0  &
-                         +D0VM(J)*CY(K,I,J)+D0VP(J)*CY(K,I,J+1)
+                           +D0VM(J)*CY(K,I,J)+D0VP(J)*CY(K,I,J+1)
             end do
          end do
       end do
@@ -467,7 +467,7 @@
 
 ! ... CY:-V^ZW_Y  at VW
       do j = 0, Ny
-         if(J.GT.0.AND.J.LT.NY) then
+         if(J > 0.AND.J < NY) then
             do i = 1,Nx
                do k = 1, Nz
                   CY(K,I,J)=-(D1VM(J)*W(K,I,J)+D1VP(J)*W(K,I,J+1))*(V(K,I,J)+V(KP(K),I,J))/2.D0
@@ -510,26 +510,26 @@
 
       do j = 1, Ny
          C00=C00X+C00Z+D2P0(J)
-         if(J.EQ.1) then
+         if(J == 1) then
             do i = 1,Nx
                do k = 1,Nz
                   UF(K,I,J)=UF(K,I,J)  &
-                  +(CM1X*U(K,IM(I),J)+CM1Z*U(KM(K),I,J)+C00*U(K,I,J)   &
-                   +CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J)+D2PP(J)*U(K,I,J+1))/RET   
+                     +(CM1X*U(K,IM(I),J)+CM1Z*U(KM(K),I,J)+C00*U(K,I,J)   &
+                     +CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J)+D2PP(J)*U(K,I,J+1))/RET   
                   WF(K,I,J)=WF(K,I,J)  &
-                  +(CM1X*W(K,IM(I),J)+CM1Z*W(KM(K),I,J)+C00*W(K,I,J)   &
-                   +CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J)+D2PP(J)*W(K,I,J+1))/RET
+                     +(CM1X*W(K,IM(I),J)+CM1Z*W(KM(K),I,J)+C00*W(K,I,J)   &
+                     +CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J)+D2PP(J)*W(K,I,J+1))/RET
                end do
             end do
 
          else
-            if(J.LT.NY) then
+            if(J < NY) then
                do i = 1, Nx
                   do k = 1, Nz
                      UF(K,I,J)=UF(K,I,J)+(D2PM(J)*U(K,I,J-1)+CM1X*U(K,IM(I),J)+CM1Z*U(KM(K),I,J)  &
-                      +C00*U(K,I,J)+CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J)+D2PP(J)*U(K,I,J+1))/RET
+                           +C00*U(K,I,J)+CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J)+D2PP(J)*U(K,I,J+1))/RET
                      WF(K,I,J)=WF(K,I,J)+(D2PM(J)*W(K,I,J-1)+CM1X*W(K,IM(I),J)+CM1Z*W(KM(K),I,J) &
-                      +C00*W(K,I,J)+CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J)+D2PP(J)*W(K,I,J+1))/RET
+                           +C00*W(K,I,J)+CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J)+D2PP(J)*W(K,I,J+1))/RET
                   end do
                end do
 
@@ -537,9 +537,9 @@
                do I=1,NX
                   do K=1,NZ
                      UF(K,I,J)=UF(K,I,J)+(D2PM(J)*U(K,I,J-1)+CM1X*U(K,IM(I),J)+CM1Z*U(KM(K),I,J) &
-                      +C00*U(K,I,J)+CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J))/RET
+                           +C00*U(K,I,J)+CP1Z*U(KP(K),I,J)+CP1X*U(K,IP(I),J))/RET
                      WF(K,I,J)=WF(K,I,J)+(D2PM(J)*W(K,I,J-1)+CM1X*W(K,IM(I),J)+CM1Z*W(KM(K),I,J)  &
-                      +C00*W(K,I,J)+CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J))/RET 
+                           +C00*W(K,I,J)+CP1Z*W(KP(K),I,J)+CP1X*W(K,IP(I),J))/RET 
                   end do
                end do
             end if
@@ -551,7 +551,7 @@
          do i = 1, Nx
             do k = 1, Nz
                VF(K,I,J)=VF(K,I,J)+(D2VM(J)*V(K,I,J-1)+CM1X*V(K,IM(I),J)+CM1Z*V(KM(K),I,J)  &
-                +C00*V(K,I,J)+CP1Z*V(KP(K),I,J)+CP1X*V(K,IP(I),J)+D2VP(J)*V(K,I,J+1))/RET
+                     +C00*V(K,I,J)+CP1Z*V(KP(K),I,J)+CP1X*V(K,IP(I),J)+D2VP(J)*V(K,I,J+1))/RET
             end do
          end do
       end do
@@ -642,7 +642,7 @@
          do j = 1,Ny
             C00=C00X+C00Z+DPP0(J)
             DPC=-1.5D0/C00
-            if(J.EQ.1) then
+            if(J == 1) then
                do i = 1,Nx
                   do k = 1, Nz
                      RESI=CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J)  &
@@ -654,7 +654,7 @@
                end do
 
             else
-               if(J.LT.NY) then
+               if(J < NY) then
                   do i = 1, Nx
                      do k = 1, Nz
                         RESI=DPPM(J)*P(K,I,J-1)+CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J) &
