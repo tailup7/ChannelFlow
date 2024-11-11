@@ -57,51 +57,43 @@
       ,4X,6HEnergy,3X,5HU'max,5X,3HU'c,5X,3HV'c,5X,3HW'c)
  1100 FORMAT(I7,F8.4,I5,2E10.2,3F8.3,2I7,F10.5,4F8.4)
 
-!=================================================================
-   10 continue
+      do
+         call SBRCON
+         call SBRVIS
+         if(icount >= 1) then                      
+            call SBRPRE(1.5D0,-0.5D0)               
+         else
+            call SBRPRE(1.0D0, 0.0D0)
+         end if
+         call SBRRHP                            
+         ipstop=20
+         call SBRSOR(ipstop)        
+         call SBRCOR                 
 
-      call SBRCON
-      call SBRVIS
-      if(icount.GE.1) then                      
-        call SBRPRE(1.5D0,-0.5D0)               
-      else
-        call SBRPRE(1.0D0, 0.0D0)
-      end if
-      call SBRRHP                            
-      ipstop=20
-      call SBRSOR(ipstop)        
-      call SBRCOR                 
+         icount = icount + 1                                   
+         istep  = istart + icount
+         tstep  = tstep  + dt
 
-      icount = icount + 1
-      istep  = istart + icount
-      tstep  = tstep  + dt
+         if(mod(istep,10) == 0 .OR. icount <= 10) then
+            call SBRUMR
+            call SBRST1
+            call SBRCHK
+            write( 6,1100) istep,tstep,ITRP,POIERR,DIVX,COMX  &
+               ,UME,UMX,INT(RET*UME),INT(RET*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
+         end if
 
-      if(MOD(ISTEP,10).eq.0.OR.ICOUNT.LE.10) then
-        call SBRUMR
-        call SBRST1
-        call SBRCHK
-        write( 6,1100) istep,tstep,ITRP,POIERR,DIVX,COMX  &
-         ,UME,UMX,INT(RET*UME),INT(RET*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
-      end if
+         if(mod(istep,iskip) == 0) then    
+            ICT=ICT+1
+            CALL SBRDTS(CT(ICT))
+         end if
 
-      IF(MOD(ISTEP,ISKIP).EQ.0) THEN    
-        ICT=ICT+1
-        CALL SBRDTS(CT(ICT))
-        ENDIF
+         if(icount >= istop) exit
 
-      if(icount.GE.istop) go to 20
+         if(istep >= 10.AND.DIVX >= 1.d+2) then 
+            write(6,*) 'Stopped  because of the numerical instability'
+         end if
+      end do
 
-      if(istep.GE.10.AND.DIVX.GE.1.D+2) go to 30
-
-      go to 10
-!C=================================================================
-
-   20 continue
-      stop
-
-   30 continue
-      write(6,*) 'Stopped  because of the numerical instability'
-      stop
       end program
 
 
