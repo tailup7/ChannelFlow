@@ -636,53 +636,53 @@
          end do
       end do
 
-  100 ITRP=ITRP+1
-
-      SUMR=0.
-      do j = 1,Ny
-         C00=C00X+C00Z+DPP0(J)
-         DPC=-1.5D0/C00
-         if(J.EQ.1) then
-            do i = 1,Nx
-               do k = 1, Nz
-                  RESI=CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J)  &
-                      +CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)+DPPP(J)*P(K,I,J+1)  &
-                      -Q(K,I,J)
-                  P(K,I,J)=P(K,I,J)+RESI*DPC
-                  SUMR=SUMR+RESI**2
-               end do
-            end do
-
-         else
-            if(J.LT.NY) then
-               do i = 1, Nx
+      do
+         ITRP=ITRP+1
+         SUMR=0.
+         do j = 1,Ny
+            C00=C00X+C00Z+DPP0(J)
+            DPC=-1.5D0/C00
+            if(J.EQ.1) then
+               do i = 1,Nx
                   do k = 1, Nz
-                     RESI=DPPM(J)*P(K,I,J-1)+CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J) &
-                         +CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)+DPPP(J)*P(K,I,J+1)-Q(K,I,J)
+                     RESI=CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J)  &
+                           +CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)+DPPP(J)*P(K,I,J+1)  &
+                           -Q(K,I,J)
                      P(K,I,J)=P(K,I,J)+RESI*DPC
                      SUMR=SUMR+RESI**2
                   end do
                end do
 
             else
-               do i = 1,Nx
-                  do k = 1,Nz
-                     RESI=DPPM(J)*P(K,I,J-1)+CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)  &
-                         +C00*P(K,I,J)+CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)  &
-                         -Q(K,I,J)
-                     P(K,I,J)=P(K,I,J)+RESI*DPC
-                     SUMR=SUMR+RESI**2
+               if(J.LT.NY) then
+                  do i = 1, Nx
+                     do k = 1, Nz
+                        RESI=DPPM(J)*P(K,I,J-1)+CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)+C00*P(K,I,J) &
+                              +CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)+DPPP(J)*P(K,I,J+1)-Q(K,I,J)
+                        P(K,I,J)=P(K,I,J)+RESI*DPC
+                        SUMR=SUMR+RESI**2
+                     end do
                   end do
-               end do
+
+               else
+                  do i = 1,Nx
+                     do k = 1,Nz
+                        RESI=DPPM(J)*P(K,I,J-1)+CM1X*P(K,IM(I),J)+CM1Z*P(KM(K),I,J)  &
+                              +C00*P(K,I,J)+CP1Z*P(KP(K),I,J)+CP1X*P(K,IP(I),J)  &
+                              -Q(K,I,J)
+                        P(K,I,J)=P(K,I,J)+RESI*DPC
+                        SUMR=SUMR+RESI**2
+                     end do
+                  end do
+               end if
             end if
-         end if
+         end do
+
+         POIERR=DSQRT(SUMR/SUMS)
+         !WRITE(6,*) 'ITRP=',ITRP,'   ERR=',POIERR
+         if(ITRP >= ISOR.OR.POIERR < 1.D-5) exit
       end do
 
-      POIERR=DSQRT(SUMR/SUMS)
-!C      WRITE(6,*) 'ITRP=',ITRP,'   ERR=',POIERR
-      if(ITRP.GE.ISOR.OR.POIERR.LT.1.D-5) go to 200
-      go to 100
-  200 continue
       return
       end
 
@@ -866,53 +866,53 @@
       write( 20, '(a,3(a,i3))' ) 'DIMENSIONS', ' ', NX, ' ', NY, ' ', NZ    
       write( 20, '(a,i6,a)' ) 'POINTS ', NX*NY*NZ, ' float'             
       do k = 1, NZ
-        do j = 1, NY
-          do i = 1, NX
-            write( 20, '(3(f8.5,a))' ) dx*dble(i), ' ', yp(j), ' ', dz*dble(k), ' '      
-          end do
-        end do
+         do j = 1, NY
+            do i = 1, NX
+               write( 20, '(3(f8.5,a))' ) dx*dble(i), ' ', yp(j), ' ', dz*dble(k), ' '      
+            end do
+         end do
       end do
 !       ------------- output u,v,w,p ---------------
       write( 20, '(a,i8)' ) 'POINT_DATA ', NX*NY*NZ
-  
+
       write( 20, '(a)' ) 'SCALARS u float'   
       write( 20, '(a)' ) 'LOOKUP_TABLE default'
       do k = 1, NZ
-        do j = 1, NY
-          do i = 1, NX                                        
-            write( 20, '(f8.5)' ) U(k,i,j)
-          end do
-        end do
+         do j = 1, NY
+            do i = 1, NX                                        
+               write( 20, '(f8.5)' ) U(k,i,j)
+            end do
+         end do
       end do
-    
+   
       write( 20, '(a)' ) 'SCALARS v float'
       write( 20, '(a)' ) 'LOOKUP_TABLE default'
       do k = 1, NZ
-        do j = 1, NY
-          do i = 1, NX
-            write( 20, '(f8.5)' ) V(k,i,j)
-          end do
-        end do
+         do j = 1, NY
+            do i = 1, NX
+               write( 20, '(f8.5)' ) V(k,i,j)
+            end do
+         end do
       end do
 
       write( 20, '(a)' ) 'SCALARS w float'
       write( 20, '(a)' ) 'LOOKUP_TABLE default'
       do k = 1, NZ
-        do j = 1, NY
-          do i = 1, NX
-            write( 20, '(f8.5)' ) W(k,i,j)
-          end do
-        end do
+         do j = 1, NY
+            do i = 1, NX
+               write( 20, '(f8.5)' ) W(k,i,j)
+            end do
+         end do
       end do
 
       write( 20, '(a)' ) 'SCALARS p float'
       write( 20, '(a)' ) 'LOOKUP_TABLE default'
       do k = 1, NZ
-        do j = 1, NY
-          do i = 1, NX
-            write( 20, '(f8.5)' ) P(k,i,j)
-          end do
-        end do
+         do j = 1, NY
+            do i = 1, NX
+               write( 20, '(f8.5)' ) P(k,i,j)
+            end do
+         end do
       end do
 
       write(6,1200) ISTEP,TSTEP
