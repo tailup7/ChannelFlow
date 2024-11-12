@@ -85,7 +85,7 @@
 
          if(mod(istep,iskip) == 0) then    
             ICT=ICT+1
-            CALL SBRDTS(CT(ICT))
+            call SBRDTS(CT(ICT))
          end if
 
          if(icount >= istop) exit
@@ -173,20 +173,20 @@
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       common /Y/YV(0:NY),YP(0:NY1) /DY/DY(NY) /DYC/DYC(NY-1)      
       ALG=0.95d0           
-      AT=dlog((1.D0+ALG)/(1.D0-ALG))/2.D0
+      AT=dlog((1.d0+ALG)/(1.d0-ALG))/2.d0
       YV(0)=0.
       do J=1,NY-1
          ETA=AT*(-1.d0 + 2.d0*dble(j)/dble(NY))      
-         YV(J)=(DTANH(ETA)/ALG+1.D0)/2.D0
+         YV(J)=(dtanh(ETA)/ALG+1.d0)/2.d0
       end do
       YV(NY)=1.D0
       do j=1,NY
-         ETA=AT*(-1.D0+2.D0*(DBLE(J)-0.5D0)/DBLE(NY))
-         YP(J)=(DTANH(ETA)/ALG+1.D0)/2.D0
+         ETA=AT*(-1.d0+2.d0*(dble(j)-0.5d0)/dble(NY))
+         YP(J)=(dtanh(ETA)/ALG+1.d0)/2.d0
       end do
 ! ... Outer points (half mesh)
-      YP(0)=2.D0*YV(0)-YP(1)
-      YP(NY1)=2.D0*YV(NY)-YP(NY)
+      YP(0)=2.d0*YV(0)-YP(1)
+      YP(NY1)=2.d0*YV(NY)-YP(NY)
 
       do j = 1,NY
          DY(J)=-YV(J-1)+YV(J)
@@ -204,16 +204,16 @@
       common /Y/YV(0:NY),YP(0:NY1) /D1VN/D1VNM(0:NY),D1VNP(0:NY)
       do j = 1,NY-1
          DYV=YP(J+1)-YP(J)
-         D1VNM(J)=-1.D0/DYV
+         D1VNM(J)=-1.d0/DYV
          D1VNP(J)= 1.D0/DYV
       end do
 !    ----- For the Neumann B.C. at the wall (DP/DY=0) for Pressure
-      D1VNM(0)= 0.D0
-      D1VNP(0)= 0.D0
-      D1VNM(NY)= 0.D0
-      D1VNP(NY)= 0.D0
-      RETURN
-      END
+      D1VNM(0)= 0.d0
+      D1VNP(0)= 0.d0
+      D1VNM(NY)= 0.d0
+      D1VNP(NY)= 0.d0
+      return
+      end
 
 !-----------------------------------------------------------------------
 !---- FDM operators at V points using data on P points and AT walls ----
@@ -249,8 +249,8 @@
       do j = 1,NY
          D0PM(J)=(YV(J)-YP(J))/DY(J)
          D0PP(J)=(YP(J)-YV(J-1))/DY(J)
-         D1PM(J)=-1.D0/DY(J)
-         D1PP(J)= 1.D0/DY(J)
+         D1PM(J)=-1.d0/DY(J)
+         D1PP(J)= 1.d0/DY(J)
       end do
       return
       end
@@ -676,29 +676,25 @@
                      SUMR=SUMR+RESI**2
                   end do
                end do
-
+            else if(J < NY) then
+               do i = 1, Nx
+                  do k = 1, Nz
+                     RESI=DPPM(J)*P(K,I,J-1) + P(K,IM(I),J)/(dx**2) + P(KM(K),I,J)/(dz**2) + C00*P(K,I,J) &
+                           +P(KP(K),I,J)/(dz**2) + P(K,IP(I),J)/(dx**2) +DPPP(J)*P(K,I,J+1)-Q(K,I,J)
+                     P(K,I,J)=P(K,I,J)+RESI*DPC
+                     SUMR=SUMR+RESI**2
+                  end do
+               end do
             else
-               if(J < NY) then
-                  do i = 1, Nx
-                     do k = 1, Nz
-                        RESI=DPPM(J)*P(K,I,J-1) + P(K,IM(I),J)/(dx**2) + P(KM(K),I,J)/(dz**2) + C00*P(K,I,J) &
-                              +P(KP(K),I,J)/(dz**2) + P(K,IP(I),J)/(dx**2) +DPPP(J)*P(K,I,J+1)-Q(K,I,J)
-                        P(K,I,J)=P(K,I,J)+RESI*DPC
-                        SUMR=SUMR+RESI**2
-                     end do
+               do i = 1,Nx
+                  do k = 1,Nz
+                     RESI=DPPM(J)*P(K,I,J-1) + P(K,IM(I),J)/(dx**2) + P(KM(K),I,J)/(dz**2)  &
+                           +C00*P(K,I,J)+P(KP(K),I,J)/(dz**2) + P(K,IP(I),J)/(dx**2)  &
+                           -Q(K,I,J)
+                     P(K,I,J)=P(K,I,J)+RESI*DPC
+                     SUMR=SUMR+RESI**2
                   end do
-
-               else
-                  do i = 1,Nx
-                     do k = 1,Nz
-                        RESI=DPPM(J)*P(K,I,J-1) + P(K,IM(I),J)/(dx**2) + P(KM(K),I,J)/(dz**2)  &
-                              +C00*P(K,I,J)+P(KP(K),I,J)/(dz**2) + P(K,IP(I),J)/(dx**2)  &
-                              -Q(K,I,J)
-                        P(K,I,J)=P(K,I,J)+RESI*DPC
-                        SUMR=SUMR+RESI**2
-                     end do
-                  end do
-               end if
+               end do
             end if
          end do
 
@@ -747,21 +743,6 @@
       end do
       return
       end
-
-!**********************************************************************
-!*       calculate Q-criterion                                        * 
-!**********************************************************************
-!      subroutine Q_criterion (u,v,w,dx,dy,dz)
-!      implicit none
-!      integer,parameter::NX=64,NY=64,NZ=64
-!      integer::i,j,k
-!      double precision::dx,dz,Q
-!      double precision::dy(1:NY)
-!      double precision::u(1:NZ,1:NX,1:NY),v(1:NZ,1:NX,0:NY),w(1:NZ,1:NX,1:NY)
-!
-!      return
-!      end subroutine Q_criterion
-
 
 ! *********************************************************************
 ! *     SBR. UMR  :  MEAN & RMS VALUES                                *
@@ -893,7 +874,7 @@
       end
 
 ! *********************************************************************
-! *     SBR. DTS  :  DATA SAVE                                        *
+! *     SBR. DTS  :  DATA SAVE         and calculate Q_criterion      *
 ! *********************************************************************
 
       SUBROUTINE SBRDTS(CT)
@@ -903,15 +884,60 @@
       character*4  FILE1
       character(9) :: FileName='output/t_'                     
       integer :: i,j,k             
-      double precision::dx,dz,Ret                          
+      double precision::dx,dz,Ret  
+      double precision::Q_c(1:NZ,1:NX,1:NY)        
+      double precision::dudx(1:NZ,1:NX,1:NY),dudy(1:NZ,1:NX,1:NY),dudz(1:NZ,1:NX,1:NY) 
+      double precision::dvdx(1:NZ,1:NX,1:NY),dvdy(1:NZ,1:NX,1:NY),dvdz(1:NZ,1:NX,1:NY) 
+      double precision::dwdx(1:NZ,1:NX,1:NY),dwdy(1:NZ,1:NX,1:NY),dwdz(1:NZ,1:NX,1:NY)                          
       common /FILE1/FILE1 /STEP/ISTEP /TSTEP/TSTEP
       common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
       common /P/P(NZ,NX,NY)                                 
-      common /Y/YV(0:NY),YP(0:NY1)                   
+      common /Y/YV(0:NY),YP(0:NY1)    
+      common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)  
+      common /DY/DY(NY)                
 
       Ret=300.d0
       dx = 18.d0/Ret
       dz = 9.d0/Ret
+
+!********************************************************************************************************
+!*       calculate Q-criterion of velocity gradient (Second invariant of the velocity gradient tensor)  * 
+!********************************************************************************************************
+
+      do j = 1,NY
+         do i = 1,NX
+            do k = 1,NZ
+               dudx(k,i,j) = (-u(k,im(i),j)+u(k,i,j))/dx 
+               dvdy(k,i,j) = (v(k,i,j)-v(k,i,j-1))/dy(j)
+               dwdz(k,i,j) = (-w(km(k),i,j)+w(k,i,j))/dz
+               ! calculate dudy
+               if (1 < j .AND. j < NY ) then
+                  dudy(k,i,j) = (-(u(k,i,j-1)+u(k,i,j))/2.d0 + (u(k,i,j+1)+u(k,i,j))/2.d0)/dy(j)
+                  dwdy(k,i,j) = (-(w(k,i,j-1)+w(k,i,j))/2.d0 + (w(k,i,j)+w(k,i,j+1))/2.d0)/dy(j)
+               else if (j == 1) then 
+                  dudy(k,i,j) = (-u(k,i,j)/2.d0 + (u(k,i,j+1)+u(k,i,j))/2.d0)/dy(j)
+                  dwdy(k,i,j) = (-w(k,i,j)/2.d0 + (w(k,i,j)+w(k,i,j+1))/2.d0)/dy(j)
+               else 
+                  dudy(k,i,j) = (-(u(k,i,j-1)+u(k,i,j))/2.d0 + u(k,i,j)/2.d0)/dy(j)
+                  dwdy(k,i,j) = (-(w(k,i,j-1)+w(k,i,j))/2.d0 + w(k,i,j)/2.d0)/dy(j)
+               end if
+               dudz(k,i,j) = (-(u(km(k),i,j)+u(k,i,j))/2.d0 + (u(kp(k),i,j)+u(k,i,j))/2.d0)/dz
+               dvdx(k,i,j) = (-(v(k,im(i),j)+v(k,i,j))/2.d0 + (v(k,i,j)+v(k,ip(i),j))/2.d0)/dx 
+               dvdz(k,i,j) = (-(v(km(k),i,j)+v(k,i,j))/2.d0 + (v(kp(k),i,j)+v(k,i,j))/2.d0)/dz
+               dwdx(k,i,j) = (-(w(k,im(i),j)+w(k,i,j))/2.d0 + (w(k,ip(i),j)+w(k,i,j))/2.d0)/dx
+            end do
+         end do
+      end do
+
+      do j=1,Ny
+         do i=1,Nx
+            do k=1,NZ
+               Q_c(k,i,j) = - 0.5d0*(dudx(k,i,j)**2 + dvdy(k,i,j)**2 + dwdz(k,i,j)**2  &
+                           + 2.d0*dudy(k,i,j)*dvdx(k,i,j) + 2.d0*dudz(k,i,j)*dwdx(k,i,j) & 
+                           + 2.d0*dvdx(k,i,j)*dwdy(k,i,j))
+            end do
+         end do
+      end do
 
       open(20, file=Filename//CT//'.vtk', status='unknown')
 
@@ -968,6 +994,17 @@
          do j = 1, NY
             do i = 1, NX
                write( 20, '(f8.5)' ) P(k,i,j)
+            end do
+         end do
+      end do
+
+      !------------- output Q_c ---------------
+      write( 20, '(a)' ) 'SCALARS QC float'   
+      write( 20, '(a)' ) 'LOOKUP_TABLE default'
+      do k = 1, NZ
+         do j = 1, NY
+            do i = 1, NX                                        
+               write( 20, '(f8.5)' ) Q_c(k,i,j)
             end do
          end do
       end do
