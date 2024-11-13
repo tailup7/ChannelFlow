@@ -22,5 +22,7 @@ initial condition : fully developed turbulent flow is independent of initial con
 ## Result
 ![channelflow](https://github.com/user-attachments/assets/c2ce3327-a38a-4335-a494-10d3aca55244)
 
+coutour of Q (Second invariant of the velocity gradient tensor) 
+
 ## Comment
-Additional code is neededd to visualize streak structure near the wall.
+
