@@ -21,8 +21,14 @@ initial condition : fully developed turbulent flow is independent of initial con
 
 ## Result
 ![channelflow](https://github.com/user-attachments/assets/c2ce3327-a38a-4335-a494-10d3aca55244)
-
+<br>
+![aaa](https://github.com/user-attachments/assets/3b986e81-1d57-4706-836a-71773443c9ac)
 coutour of Q (Second invariant of the velocity gradient tensor) 
+<br>
+Voltex structure is found a little at near wall at initial time, but this is not fully developed turbulent voltex.
+More trial with high Ret, more grid numbers and time steps are needed.
 
 ## Comment
-
+The figure is resulted with 
+grid number : 64,64,64 <br>
+Ret : 300
