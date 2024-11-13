@@ -1,5 +1,7 @@
 !****************************************************************************************************************************
 ! 3D channel flow simulation with direct numerical simulation 
+
+! coupling : fractional step method
 !
 ! space : 2nd order central
 !
