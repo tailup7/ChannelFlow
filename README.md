@@ -5,7 +5,7 @@ Turbulent flow between two parallel plates is called channel flow.
 ## Usage
 1.Make empty folder named 「output」 in same directory <br>
 2.Make initial flow field by using 「initial.f90」<br>
-3.Run the main program. <br>
+3.Run the main program (grid counts must be same with 「initial.f90」). <br>
 4.Visualize calculation result in 「output」 by paraview <br>
 
 ## Nondimensionalized Governing Equations
@@ -27,9 +27,9 @@ contour of Q (Second invariant of the velocity gradient tensor)
 <br>
 <br>
 Voltex structure is found a little at near wall at initial time, but this is not fully developed turbulent voltex.
-More trial with high Ret, more grid numbers and time steps are needed.
+More trial with high Ret, more grid counts and time steps are needed.
 
 ## Comment
 The figure is resulted with 
-grid number : 64,64,64 <br>
+grid counts : 64,64,64 <br>
 Ret : 300
