@@ -1,7 +1,7 @@
 !****************************************************************************************************************************
 ! 3D channel flow simulation with direct numerical simulation 
-
-! coupling : fractional step method
+!
+! coupling : fractional step
 !
 ! space : 2nd order central
 !
@@ -16,16 +16,71 @@
 !        x,z : periodic
 !        y : wall (non-slip) 
 !******************************************************************************************************************************
-      program channelflowDNS
-      parameter (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      character*3  CT(0:100)
-      character*4  file1
-      double precision ::Ret,dt
-      common /file1/file1 /RMS/URMSX,URMSC,VRMSC,WRMSC
-      common /STEP/ISTEP /TSTEP/TSTEP /START/ISTART
-      common /DIV/DIVX /COU/COMX /ENE/ENE /UME/UME,UMX
-      common /ERRP/POIERR /ITRP/ITRP 
+module global              
+
+   implicit none
+   !!!!!!!!!!!!!!!!!!!!!!     input    parameter   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   integer,parameter:: NX=96,NY=96,NZ=96,NY1=NY+1  !! grid number of each direction. NY must be  even number.
+   integer::ip(1:NX),im(1:NX),kp(1:NZ),km(1:NZ)    !! identify the neighbouring point(for periodic boundary)
+   double precision, parameter::dt=  1.0d-4        !! time step
+   double precision, parameter::Ret = 300.d0       !! Rynolds number
+   double precision, parameter::dx = 18.d0/Ret     !! grid size of x direction.
+   double precision, parameter::dz = 9.d0/Ret      !! grid size of z direction.
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   integer::itrp
+   double precision::poierr,divx,comx,ume,umx,ene   !  these are calculated values displayed on the console
+   double precision::URMSX,URMSC,VRMSC,WRMSC
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   double precision::D1VNM(0:NY),D1VNP(0:NY)
+   double precision::D0VM(1:NY-1),D0VP(1:NY-1)
+   double precision::D1VM(0:NY),D1VP(0:NY)
+   double precision::D0PM(1:NY),D0PP(1:NY)          !          these are FDM operator,  
+   double precision::D1PM(1:NY),D1PP(1:NY)          !          defined in subroutine SBRMSH
+   double precision::D2VM(1:NY-1),D2V0(1:NY-1),D2VP(1:NY-1)
+   double precision::D2P0(1:NY),D2PP(1:NY-1),D2PM(2:NY)
+   double precision::DPP0(1:NY),DPPP(1:NY-1),DPPM(2:NY)
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   double precision::yv(0:NY)                      
+   double precision::yp(0:NY1)                     
+   double precision::dy(1:NY)
+   double precision::dyc(1:Ny-1)
+   double precision::Lx,Lz
+   double precision::u(1:NZ,1:NX,1:NY),v(1:NZ,1:NX,0:NY),w(1:NZ,1:NX,1:NY)
+   double precision::UF(1:NZ,1:NX,1:NY),WF(1:NZ,1:NX,1:NY),VF(1:NZ,1:NX,0:NY)
+   double precision::UB(1:NZ,1:NX,1:NY),WB(1:NZ,1:NX,1:NY),VB(1:NZ,1:NX,1:NY-1)
+   double precision::Q(1:NZ,1:NX,1:NY),P(1:NZ,1:NX,1:NY)
+   double precision::UM(1:NY),BVU2(1:NY),WM(1:NY),BVW2(1:NY),BVP2(1:NY),PM(1:NY)
+   double precision::VM(0:NY),BVV2(0:NY)
+   double precision::ur(1:NY)
+      contains
+         subroutine define_y                    
+            implicit none
+            yv(0)=0.d0              !! input parameter (y-coordinate of the upper boundary)
+            yv(NY)=1.d0             !! input parameter (y-coordinate of the lower boundary)
+            return
+         end subroutine define_y
+
+         subroutine define_xz
+            implicit none
+            Lx=dble(NX)*dx          ! x-direction length of the region 
+            Lz=dble(NZ)*dz          ! z-direction length of the region 
+            return
+         end subroutine define_xz
+
+end module global
+
+!***************************************************************************************************************
+!***************************************************************************************************************
+
+      program channelflowDNS           
+      use global
+      implicit none
+      integer:: istart,istep,ipstop
+      integer::iskip,isave,istop,icount,ict
+      character(3)::CT(0:100)
+      character(4)::file1
+      double precision ::tstep
+
       data CT/'000', &      
       '001','002','003','004','005','006','007','008','009','010',  &
       '011','012','013','014','015','016','017','018','019','020',  &
@@ -39,21 +94,19 @@
       '091','092','093','094','095','096','097','098','099','100'/
 
          file1='dns2'
-         Ret = 300.d0   
-         dt=  1.0d-4
          iskip = 40            
          isave = 100
          istop=iskip*isave   
          icount=0
          ICT=0
-      call SBRMSH
-      call SBRDTR(CT(ICT))    
+      call SBRMSH 
+      call SBRDTR(CT(ICT),file1)    
       write( 6,1000)
-      call SBRUMR
-      call SBRST1
-      call SBRCHK
-      write( 6,1100) ISTART,TSTEP,ITRP,POIERR,DIVX,COMX  &
-         ,UME,UMX,INT(Ret*UME),INT(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
+      call SBRUMR       
+      call SBRST1 
+      call SBRCHK 
+      write( 6,1100) ISTART,TSTEP,ITRP,POIERR,DIVX,COMX,  &        
+          UME,UMX,INT(Ret*UME),INT(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
  1000 FORMAT(3X,4HSTEP,7X,1HT,1X,4HITRP,4X,6HPOIerr,4X,6HDIVmax  &
       ,2X,6HCOUmax,3X,5HUmean,4X,4HUmax,4X,3HRem,4X,3HRex   &
       ,4X,6HEnergy,3X,5HU'max,5X,3HU'c,5X,3HV'c,5X,3HW'c)
@@ -61,33 +114,33 @@
 
       !!! main loop  
       do
-         call SBRCON
-         call SBRVIS
+         call SBRCON 
+         call SBRVIS 
          if(icount >= 1) then                      
             call SBRPRE(1.5d0,-0.5d0)               
          else
             call SBRPRE(1.0d0, 0.0d0)
          end if
-         call SBRRHP                            
+         call SBRRHP                         
          ipstop=20
-         call SBRSOR(ipstop)        
-         call SBRCOR                 
+         call SBRSOR(ipstop)       
+         call SBRCOR               
 
          icount = icount + 1                                   
          istep  = istart + icount
          tstep  = tstep  + dt
 
          if(mod(istep,10) == 0 .OR. icount <= 10) then
-            call SBRUMR
-            call SBRST1
-            call SBRCHK
-            write( 6,1100) istep,tstep,ITRP,POIERR,DIVX,COMX  &
-               ,UME,UMX,INT(Ret*UME),INT(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
+            call SBRUMR 
+            call SBRST1 
+            call SBRCHK 
+            write( 6,1100) istep,tstep,ITRP,POIERR,DIVX,COMX,  &
+               UME,UMX,int(Ret*UME),int(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
          end if
 
          if(mod(istep,iskip) == 0) then    
             ICT=ICT+1
-            call SBRDTS(CT(ICT))
+            call SBRDTS(CT(ICT),istep,tstep)
          end if
 
          if(icount >= istop) exit
@@ -104,22 +157,18 @@
 ! *     SBR. MSH  :  MESH PARAMETERS                                  *
 ! *********************************************************************
 
-      SUBROUTINE SBRMSH
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision ::dx,dz,Lx,Lz,Ret,dt
+      SUBROUTINE SBRMSH 
+      use global
+      implicit none
 
-      common /Y/YV(0:NY),YP(0:NY1)
-      common /DY/DY(NY) 
+      call define_xz
 
-      dt=  1.0d-4
-
-      call MESHY
-      call MESHXZ
+      call MESHY 
+      call MESHXZ 
 
       WRITE(6,1000) NX,LX,dx,Ret*LX,Ret*dx,NZ,LZ,dz,Ret*LZ,Ret*dz  &
       ,NY,1.,DY(1),DY(NY/2),Ret*DY(1),Ret*DY(NY/2),YP(1),Ret*YP(1)  &
-      ,INT(Ret),dt
+      ,int(Ret),dt
  1000 FORMAT(/10(1H*),"  IN SBR.MSH  ",10(1H*)/  &
       /5X,"NX=",I4,5X,"LX=",F7.3,3X,"dx=",F7.5  &
       ,5X,"LX+=",F7.1,3X,"dx+=",F7.3  &
@@ -130,84 +179,78 @@
       /5X,"YP(1)=",F7.5,3X,"YP(1)+=",F6.2  &
       /5X,"Ret=",I6/5X,"dt=",F9.5)
 
-      call MDQ1VN
-      call MDQ1VD
-      call MDQ1P
-      call MDQ2V
-      call MDQ2PV
-      call MDQ2PP
+      call MDQ1VN 
+      call MDQ1VD 
+      call MDQ1P 
+      call MDQ2V 
+      call MDQ2PV 
+      call MDQ2PP 
       return
-      end
+      end subroutine
 !---------------------------------------------------------------------
 !-----  Mesh generation .....  for X(mainstream direction), Z directions (across the main stream)  ------------------
-      SUBROUTINE MESHXZ
-      PARAMETER (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision ::dx,dz,Lx,Lz,Ret                 
-      common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
-
-      Ret = 300.d0
-      dx = 18.d0/Ret
-      dz = 9.d0/Ret
-      LX = dble(NX)*dx
-      LZ = dble(NZ)*dz
+      SUBROUTINE MESHXZ 
+      use global
+      implicit none
+      integer:: i,k
 
 !  -----  List vectors to identify the neighbouring point   ---------
-      do I=1,NX
-         IP(I)=I+1
-         IM(I)=I-1
-         if(IP(I) > NX) IP(I)=IP(I)-NX
-         if(IM(I) < 1) IM(I)=IM(I)+NX
+      do i = 1,NX
+         ip(i) = i+1
+         im(i) = i-1
+         if(ip(i) > NX) ip(i)=ip(i)-NX
+         if(im(i) < 1) im(i)=im(i)+NX
       end do
       do k = 1, NZ
-         KP(k) = k + 1
-         KM(k) = k - 1
-         if(KP(k) > NZ) KP(k) = KP(k) - NZ
-         if(KM(k) < 1) KM(k) = KM(k) + NZ
+         kp(k) = k + 1
+         km(k) = k - 1
+         if(kp(k) > NZ) kp(k) = kp(k) - NZ
+         if(km(k) < 1) km(k) = km(k) + NZ
       end do
 
       return
-      end
+      end subroutine
 !---------------------------------------------------------------------
 !-----  Mesh generation .....  for Y direction (wall-wall) ----------------------
-      SUBROUTINE MESHY
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /Y/YV(0:NY),YP(0:NY1) /DY/DY(NY) /DYC/DYC(NY-1)      
-      ALG=0.95d0           
-      AT=dlog((1.d0+ALG)/(1.d0-ALG))/2.d0
-      YV(0)=0.
+      SUBROUTINE MESHY 
+      use global
+      implicit none
+      integer::j
+      double precision::alg,at,eta
+      call define_y
+      alg = 0.95d0           
+      at = dlog((1.d0+alg)/(1.d0-alg))/2.d0
       do J=1,NY-1
-         ETA=AT*(-1.d0 + 2.d0*dble(j)/dble(NY))      
-         YV(J)=(dtanh(ETA)/ALG+1.d0)/2.d0
+         eta = at*(-1.d0 + 2.d0*dble(j)/dble(NY))      
+         YV(J)=(dtanh(eta)/alg+1.d0)/2.d0
       end do
-      YV(NY)=1.D0
       do j=1,NY
-         ETA=AT*(-1.d0+2.d0*(dble(j)-0.5d0)/dble(NY))
-         YP(J)=(dtanh(ETA)/ALG+1.d0)/2.d0
+         eta = at*(-1.d0+2.d0*(dble(j)-0.5d0)/dble(NY))
+         YP(J)=(dtanh(eta)/alg+1.d0)/2.d0
       end do
 ! ... Outer points (half mesh)
       YP(0)=2.d0*YV(0)-YP(1)
       YP(NY1)=2.d0*YV(NY)-YP(NY)
 
       do j = 1,NY
-         DY(J)=-YV(J-1)+YV(J)
+         dy(J)=-YV(J-1)+YV(J)
       end do
       do j = 1,NY-1
-         DYC(J)=-YP(J)+YP(J+1)
+         dyc(J)=-YP(J)+YP(J+1)
       end do
       return
-      end
+      end subroutine
 !-----------------------------------------------------------------------
 !---- FDM operators at V points using data on P points and INSIDE walls 
-      SUBROUTINE MDQ1VN
-      PARAMETER (NY=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /Y/YV(0:NY),YP(0:NY1) /D1VN/D1VNM(0:NY),D1VNP(0:NY)
+      SUBROUTINE MDQ1VN 
+      use global
+      implicit none
+      integer::j
+      double precision::dyv
       do j = 1,NY-1
          DYV=YP(J+1)-YP(J)
          D1VNM(J)=-1.d0/DYV
-         D1VNP(J)= 1.D0/DYV
+         D1VNP(J)= 1.d0/DYV
       end do
 !    ----- For the Neumann B.C. at the wall (DP/DY=0) for Pressure
       D1VNM(0)= 0.d0
@@ -215,15 +258,16 @@
       D1VNM(NY)= 0.d0
       D1VNP(NY)= 0.d0
       return
-      end
+      end subroutine
 
 !-----------------------------------------------------------------------
 !---- FDM operators at V points using data on P points and AT walls ----
-      SUBROUTINE MDQ1VD
-      PARAMETER (NY=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)                      
-      COMMON /Y/YV(0:NY),YP(0:NY1) 
-      COMMON /D0V/D0VM(NY-1),D0VP(NY-1) /D1V/D1VM(0:NY),D1VP(0:NY)
+      SUBROUTINE MDQ1VD 
+      use global
+      implicit none
+      integer::j
+      double precision::dyv,DYP0,DYPN
+      
       do j=1,NY-1
          DYV=YP(J+1)-YP(J)
          D0VM(J)=(YP(J+1)-YV(J))/DYV
@@ -243,26 +287,26 @@
       end
 !-----------------------------------------------------------------------
 !---  FDM operators for velocity at P points using data on V points ----
-      SUBROUTINE MDQ1P
-      PARAMETER (NY=64,NY1=NY+1,NYH1=NY-1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      COMMON /Y/YV(0:NY),YP(0:NY1) /DY/DY(NY)             
-      COMMON /D0P/D0PM(NY),D0PP(NY) /D1P/D1PM(NY),D1PP(NY)
+      SUBROUTINE MDQ1P 
+      use global
+      implicit none
+      integer::j
+
+      call define_y
       do j = 1,NY
-         D0PM(J)=(YV(J)-YP(J))/DY(J)
-         D0PP(J)=(YP(J)-YV(J-1))/DY(J)
-         D1PM(J)=-1.d0/DY(J)
-         D1PP(J)= 1.d0/DY(J)
+         D0PM(j)=(YV(j)-YP(j))/DY(j)
+         D0PP(j)=(YP(j)-YV(j-1))/DY(j)
+         D1PM(j)=-1.d0/DY(j)
+         D1PP(j)= 1.d0/DY(j)
       end do
       return
       end
 !-----------------------------------------------------------------------
 !---  FDM operators for viscous terms at V points  ---------------------
-      SUBROUTINE MDQ2V
-      PARAMETER (NY=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /D2V/D2VM(NY-1),D2V0(NY-1),D2VP(NY-1) 
-      common /D1V/D1VM(0:NY),D1VP(0:NY) /D1P/D1PM(NY),D1PP(NY)
+      SUBROUTINE MDQ2V 
+      use global
+      implicit none 
+      integer::j
       do j=1,Ny-1
          D2VM(J)=D1VM(J)*D1PM(J)
          D2V0(J)=D1VM(J)*D1PP(J)+D1VP(J)*D1PM(J+1)
@@ -272,11 +316,10 @@
       end
 !-----------------------------------------------------------------------
 !---  FDM operators for viscous terms at P points  ---------------------
-      SUBROUTINE MDQ2PV
-      PARAMETER (NY=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /D2P/D2PM(2:NY),D2P0(NY),D2PP(NY-1) 
-      common /D1V/D1VM(0:NY),D1VP(0:NY) /D1P/D1PM(NY),D1PP(NY)
+      SUBROUTINE MDQ2PV 
+      use global
+      implicit none
+      integer::j
       j = 1
       D2P0(J)=D1PM(J)*D1VM(J-1)+D1PP(J)*D1VM(J)
       D2PP(J)=D1PM(J)*D1VP(J-1)+D1PP(J)*D1VP(J)
@@ -293,11 +336,10 @@
 
 !-----------------------------------------------------------------------
 !---  FDM operators for pressure's Poisson equation  -----------------
-      SUBROUTINE MDQ2PP
-      PARAMETER (NY=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      COMMON /DPP/DPPM(2:NY),DPP0(NY),DPPP(NY-1)
-      COMMON /D1VN/D1VNM(0:NY),D1VNP(0:NY) /D1P/D1PM(NY),D1PP(NY)
+      SUBROUTINE MDQ2PP 
+      use global
+      implicit none
+      integer::j
       do j = 1,NY
          if (J > 1) DPPM(J)=D1PM(J)*D1VNM(J-1)
          DPP0(J)=D1PM(J)*D1VNP(J-1)+D1PP(J)*D1VNM(J)
@@ -310,14 +352,14 @@
 ! *     SBR. DTR  :  DATA READ                                        *
 ! *********************************************************************
 
-      SUBROUTINE SBRDTR(CT)
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      CHARACTER*3 CT
-      CHARACTER*4 file1
-      common /file1/file1 /start/istart /tstep/tstep
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /P/P(NZ,NX,NY) 
+      SUBROUTINE SBRDTR(CT,file1)
+      use global
+      implicit none
+      character(3)::CT
+      character(4)::file1
+      integer::istart
+      double precision::tstep
+
       open(10,file=file1//CT//'u.d',status='old',form='formatted')     
          read(10,1000) istart,tstep           
          read(10,2000) U
@@ -346,26 +388,22 @@
 ! *     SBR. CON  :  NONLINEAR TERM                                   *
 ! *********************************************************************
 
-      SUBROUTINE SBRCON
-      call SBRNLU
-      call SBRNLV
-      call SBRNLW
+      SUBROUTINE SBRCON 
+      use global
+      implicit none
+
+      call SBRNLU 
+      call SBRNLV 
+      call SBRNLW 
       return
       end
 ! ----------------------------------------------------------------------
-      SUBROUTINE SBRNLU     !!!! calculate first component of convection term ( = UF)
-      PARAMETER (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision :: dx,dz,Ret
-      common /UF/UF(NZ,NX,NY)                      
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /W1/CX(NZ,NX,NY) /W2/CY(NZ,NX,0:NY) /W3/CZ(NZ,NX,NY)
-      common /D1V/D1VM(0:NY),D1VP(0:NY) /D0P/D0PM(NY),D0PP(NY)
-      common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
-
-      Ret=300.d0
-      dx = 18.d0/Ret      
-      dz = 9.d0/Ret
+      !!!! calculate first component of convection term ( = UF)
+      SUBROUTINE SBRNLU 
+      use global
+      implicit none
+      integer::i,j,k
+      double precision::CX(1:NZ,1:NX,1:NY),CZ(1:NZ,1:NX,1:NY),CY(1:NZ,1:NX,0:NY)
 ! ... CX:-U^XU_X  at P  (U^X ... average of U in x direction  U_X ... differentiation of U in x direction)
 ! ... CZ:-W^XU_Z  at P 
       do j = 1, Ny
@@ -404,20 +442,12 @@
       return
       end
 ! ----------------------------------------------------------------------
-      SUBROUTINE SBRNLV      !!!! calculate second component of convection term ( = VF)
-      PARAMETER (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision::dx,dz,Ret
-      common /VF/VF(NZ,NX,0:NY)                    
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /W1/CX(NZ,NX,NY) /W2/CY(NZ,NX,0:NY) /W3/CZ(NZ,NX,NY)
-      common /D0V/D0VM(NY-1),D0VP(NY-1) 
-      common /D0P/D0PM(NY),D0PP(NY) /D1P/D1PM(NY),D1PP(NY)
-      common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
-
-      Ret = 300.d0
-      dz = 9.d0/Ret
-      dx = 18.d0/Ret
+      !!!! calculate second component of convection term ( = VF)
+      SUBROUTINE SBRNLV 
+      use global
+      implicit none
+      integer::i,j,k
+      double precision::CX(1:NZ,1:NX,1:NY),CY(1:NZ,1:NX,0:NY),CZ(1:NZ,1:NX,1:NY)
 ! ... CY:-(V^Y*V_Y)^Y at P
       do j = 1, NY
          do  i = 1, NX
@@ -449,19 +479,13 @@
       return
       end
 ! ----------------------------------------------------------------------
-      SUBROUTINE SBRNLW     !!! calculate third component of convection term ( = WF)
-      PARAMETER (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision :: dx,dz,Ret
-      common /WF/WF(NZ,NX,NY)
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /W1/CX(NZ,NX,NY) /W2/CY(NZ,NX,0:NY) /W3/CZ(NZ,NX,NY)
-      common /D1V/D1VM(0:NY),D1VP(0:NY) /D0P/D0PM(NY),D0PP(NY)
-      common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)
+      !!! calculate third component of convection term ( = WF)
+      SUBROUTINE SBRNLW 
+      use global
+      implicit none
+      integer::i,j,k
+      double precision::CX(1:NZ,1:NX,1:NY),CY(1:NZ,1:NX,0:NY),CZ(1:NZ,1:NX,1:NY)
 
-      Ret=300.d0
-      dx = 18.d0/Ret   
-      dz = 9.d0/Ret
 ! ... CX:-U^ZW_X  at UW,  CZ:-W^ZW_Z  at P
       do j = 1, Ny
          do i = 1, Nx
@@ -505,20 +529,11 @@
 ! *     SBR. VIS  :  VISCOUS TERM                                     *
 ! *********************************************************************
 
-      SUBROUTINE SBRVIS
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision::Ret,dx,dz,C00
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY) 
-      common /UF/UF(NZ,NX,NY) /VF/VF(NZ,NX,0:NY) /WF/WF(NZ,NX,NY)
-      common /D2V/D2VM(NY-1),D2V0(NY-1),D2VP(NY-1) 
-      common /D2P/D2PM(2:NY),D2P0(NY),D2PP(NY-1) 
-      common /IP/IP(NX) /IM/IM(NX) 
-      common /KP/KP(NZ) /KM/KM(NZ) 
-
-      Ret = 300.d0
-      dx = 18.d0/Ret
-      dz = 9.d0/Ret
+      SUBROUTINE SBRVIS 
+      use global
+      implicit none
+      integer::i,j,k
+      double precision::c00
 
       do j = 1, Ny
          C00 = -2.d0/(dx**2) - 2.d0/(dz**2) + D2P0(J)
@@ -571,14 +586,10 @@
 ! *********************************************************************
 
       SUBROUTINE SBRPRE(AB,BB)
-      PARAMETER (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision::dt
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /UF/UF(NZ,NX,NY) /VF/VF(NZ,NX,0:NY) /WF/WF(NZ,NX,NY)
-      common /UB/UB(NZ,NX,NY) /VB/VB(NZ,NX,NY-1) /WB/WB(NZ,NX,NY)
-
-      dt=  1.0d-4
+      use global
+      implicit none
+      integer::i,j,k
+      double precision::AB,BB,DAB,DBB
 
       DAB = AB*dt
       DBB = BB*dt
@@ -610,18 +621,11 @@
 ! *********************************************************************
 
 ! --- R.H.S. FOR SCALER POTANTIAL -------------------------------------
-      SUBROUTINE SBRRHP                   !!!calculate right hand side of poisson Eq
-      PARAMETER (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision ::dx,dz,Ret,dt
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /W3/Q(NZ,NX,NY)  
-      common /D1P/D1PM(NY),D1PP(NY) /IM/IM(NX) /KM/KM(NZ)
-
-      dt=  1.0d-4
-      Ret=300.d0
-      dx = 18.d0/Ret
-      dz = 9.d0/Ret
+      !!!calculate right hand side of poisson Eq
+      SUBROUTINE SBRRHP  
+      use global                
+      implicit none
+      integer::i,j,k
 
       do j = 1,Ny
          do i = 1,Nx
@@ -638,21 +642,15 @@
 ! *     SBR. SOR  :  S.O.R. SCHEME FOR POISSON EQ.                    *
 ! *********************************************************************
 
-      SUBROUTINE SBRSOR(ISOR)                                     
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision::Ret,dz,dx,c00
-      common /DPP/DPPM(2:NY),DPP0(NY),DPPP(NY-1)
-      common /P/P(NZ,NX,NY) /W3/Q(NZ,NX,NY) /ERRP/POIERR /ITRP/ITRP
-      common /IP/IP(NX) /IM/IM(NX) 
-      common /KP/KP(NZ) /KM/KM(NZ) 
-
-      Ret=300.d0
-      dz = 9.d0/Ret
-      dx = 18.d0/Ret
+      SUBROUTINE SBRSOR(ISOR)  
+      use global                                   
+      implicit none
+      integer::ISOR
+      integer::i,j,k
+      double precision::c00,sums,sumr,dpc,resi
 
       ITRP=0
-      SUMS=0.D0
+      SUMS=0.d0
 
       do j = 1,Ny
          do i = 1, Nx
@@ -667,7 +665,7 @@
          SUMR=0.
          do j = 1,Ny
             C00 = -2.d0/(dx**2) - 2.d0/(dz**2) + DPP0(J)
-            DPC=-1.5D0/C00
+            DPC=-1.5d0/C00
             if(J == 1) then
                do i = 1,Nx
                   do k = 1, Nz
@@ -700,9 +698,9 @@
             end if
          end do
 
-         POIERR=DSQRT(SUMR/SUMS)
+         POIERR=dsqrt(SUMR/SUMS)
          !WRITE(6,*) 'ITRP=',ITRP,'   ERR=',POIERR
-         if(ITRP >= ISOR.OR.POIERR < 1.D-5) exit
+         if(ITRP >= ISOR.OR.POIERR < 1.d-5) exit
       end do
 
       return
@@ -712,18 +710,11 @@
 ! *     SBR. COR  :  CORRECTION STEP                                  *
 ! *********************************************************************  
 
-      SUBROUTINE SBRCOR
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision::dx,dz,Ret,dt
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /P/P(NZ,NX,NY) /DY/DY(NY)
-      common /IP/IP(NX) /KP/KP(NZ) /D1VN/D1VNM(0:NY),D1VNP(0:NY)
-
-      dt=  1.0d-4
-      Ret=300.d0
-      dx = 18.d0/Ret
-      dz = 9.d0/Ret
+      SUBROUTINE SBRCOR 
+      use global
+      implicit none
+      integer::i,j,k
+      double precision::TX,TZ
 
       TX=dt/dx
       TZ=dt/dz
@@ -750,21 +741,18 @@
 ! *     SBR. UMR  :  MEAN & RMS VALUES                                *
 ! *********************************************************************
 
-      SUBROUTINE SBRUMR                   
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /UM/UM(NY),VM(0:NY),WM(NY) /S12/S12L(0:NY),S12V(0:NY)
-      common /IP/IP(NX) /IM/IM(NX) /D0V/D0VM(NY-1),D0VP(NY-1)
-      common /BVU/BVU2(NY),BVU3(NY),BVU4(NY)
-      common /BVV/BVV2(0:NY),BVV3(0:NY),BVV4(0:NY)
-      common /BVW/BVW2(NY),BVW3(NY),BVW4(NY)
-      ARXZ=1./DBLE(NX*NZ)
+      SUBROUTINE SBRUMR       
+      use global             
+      implicit none
+      integer::i,j,k
+      double precision::arxz,sumu1,sumu2,sumw1,sumw2,sumv1,sumv2,sumuv
+      double precision::S12L(0:NY)
+      arxz = 1.d0/dble(NX*NZ)
       do j = 1, NY
-         SUMU1=0.D0
-         SUMU2=0.D0
-         SUMW1=0.D0
-         SUMW2=0.D0
+         SUMU1=0.d0
+         SUMU2=0.d0
+         SUMW1=0.d0
+         SUMW2=0.d0
          do i = 1, NX
             do k = 1, NZ
                SUMU1=SUMU1+U(K,I,J)
@@ -773,16 +761,16 @@
                SUMW2=SUMW2+W(K,I,J)**2
             end do
          end do
-         UM(J)=ARXZ*SUMU1
-         BVU2(J)=ARXZ*SUMU2
-         WM(J)=ARXZ*SUMW1
-         BVW2(J)=ARXZ*SUMW2
+         UM(j) = arxz*SUMU1
+         BVU2(j) = arxz*SUMU2
+         WM(j) = arxz*SUMW1
+         BVW2(j) = arxz*SUMW2
       end do
                         
       do j = 1,Ny-1
-         SUMV1=0.D0
-         SUMV2=0.D0
-         SUMUV=0.D0
+         SUMV1=0.d0
+         SUMV2=0.d0
+         SUMUV=0.d0
          do i = 1,Nx
             do k = 1,Nz
                SUMV1=SUMV1+V(K,I,J)
@@ -790,9 +778,9 @@
                SUMUV=SUMUV+(D0VM(J)*U(K,I,J)+D0VP(J)*U(K,I,J+1))*(V(K,I,J)+V(K,IP(I),J))  
             end do
          end do
-         VM(J)=ARXZ*SUMV1
-         BVV2(J)=ARXZ*SUMV2
-         S12L(J)=ARXZ*SUMUV/2.D0
+         VM(J)=arxz*SUMV1
+         BVV2(J)=arxz*SUMV2
+         S12L(J)=arxz*SUMUV/2.d0
       end do
       return
       end
@@ -801,17 +789,12 @@
 ! *     SBR. STT  :  TURBULENCE STATISTICS                            *
 ! *********************************************************************
 
-      SUBROUTINE SBRST1           
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      common /UM/UM(NY),VM(0:NY),WM(NY) /PM/PM(NY)
-      common /UR/UR(NY),VR(0:NY),WR(NY) /PR/PR(NY)
-      common /ENE/ENE /UME/UME,UMX /RMS/URMSX,URMSC,VRMSC,WRMSC
-      common /DY/DY(NY) /DYC/DYC(NY-1)
-      common /BVU/BVU2(NY),BVU3(NY),BVU4(NY)
-      common /BVV/BVV2(0:NY),BVV3(0:NY),BVV4(0:NY)
-      common /BVW/BVW2(NY),BVW3(NY),BVW4(NY)
-      common /BVP/BVP2(NY)
+      SUBROUTINE SBRST1 
+      use global
+      implicit none
+      integer::j
+      double precision::WR(1:NY),PR(1:NY),VR(0:NY)
+
       ENE=0.d0
       UME=0.d0
       UMX=0.d0
@@ -820,19 +803,19 @@
          UR(J)=dsqrt(BVU2(J)-UM(J)**2)
          WR(J)=dsqrt(BVW2(J)-WM(J)**2)
          PR(J)=dsqrt(BVP2(J)-PM(J)**2)
-         ENE=ENE+DY(J)*(UR(J)**2+WR(J)**2)
-         UME=UME+DY(J)*UM(J)
-         UMX=DMAX1(UMX,UM(J))
-         URMSX=DMAX1(URMSX,UR(J))
+         ENE=ENE+dy(j)*(UR(J)**2+WR(J)**2)
+         UME=UME+dy(j)*UM(J)
+         UMX=dmax1(UMX,UM(J))
+         URMSX=dmax1(URMSX,UR(J))
       end do
       do j = 1,Ny-1
          VR(J)=dsqrt(BVV2(J)-VM(J)**2)
-         ENE=ENE+DYC(J)*VR(J)**2
+         ENE=ENE+dyc(J)*VR(J)**2
       end do
-      URMSC=(UR(NY/2)+UR(NY/2+1))/2.D0
+      URMSC=(UR(NY/2)+UR(NY/2+1))/2.d0
       VRMSC=VR(NY/2)
-      WRMSC=(WR(NY/2)+WR(NY/2+1))/2.D0
-      ENE=ENE/2.D0
+      WRMSC=(WR(NY/2)+WR(NY/2+1))/2.d0
+      ENE=ENE/2.d0
       return
       end
 
@@ -840,35 +823,26 @@
 ! *     SBR. CHK  :  CHECK of DIVERGENCE and COURANT-NUMBER           *
 ! *********************************************************************
 
-      SUBROUTINE SBRCHK
-      PARAMETER (NX=64,NY=64,NZ=64)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      double precision::dx,dz,Ret,dt
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)      
-      common /DY/DY(NY) /DIV/DIVX /COU/COMX
-      common /D0P/D0PM(NY),D0PP(NY) /D1P/D1PM(NY),D1PP(NY)
-      common /UR/UR(NY),VR(0:NY),WR(NY)
-      common /IM/IM(NX) /KM/KM(NZ)
-
-      dt=  1.0d-4
-      Ret=300.d0
-      dx = 18.d0/Ret
-      dz = 9.d0/Ret
+      SUBROUTINE SBRCHK 
+      use global
+      implicit none
+      integer::i,j,k
+      double precision::div,ucp,wcp,vcp,cou,dnomal
 
       DIVX=0.d0
       COMX=0.d0
       do j = 1,Ny
-         DNOMAL=(dx*DY(J)*dz)**(1.D0/3.D0)/UR(J)
+         DNOMAL=(dx*DY(J)*dz)**(1.d0/3.d0)/UR(J)
          do i = 1,Nx
             do k = 1,Nz
             DIV=(-U(K,IM(I),J)+U(K,I,J))/dx+D1PM(J)*V(K,I,J-1)+D1PP(J)*V(K,I,J)  &
                +(-W(KM(K),I,J)+W(K,I,J))/dz
-            UCP=(U(K,IM(I),J)+U(K,I,J))/2.D0
-            WCP=(W(KM(K),I,J)+W(K,I,J))/2.D0
+            UCP=(U(K,IM(I),J)+U(K,I,J))/2.d0
+            WCP=(W(KM(K),I,J)+W(K,I,J))/2.d0
             VCP=D0PM(J)*V(K,I,J-1)+D0PP(J)*V(K,I,J)
-            DIVX=DMAX1(DIVX,DNOMAL*DIV)
-            COU = dt*(DABS(UCP)/dx+DABS(VCP)/DY(J)+DABS(WCP)/dz)
-            COMX=DMAX1(COMX,COU)
+            DIVX=dmax1(DIVX,DNOMAL*DIV)
+            COU = dt*(dabs(UCP)/dx+dabs(VCP)/DY(J)+dabs(WCP)/dz)
+            COMX=dmax1(COMX,COU)
             end do
          end do
       end do
@@ -879,28 +853,18 @@
 ! *     SBR. DTS  :  DATA SAVE         and calculate Q_criterion      *
 ! *********************************************************************
 
-      SUBROUTINE SBRDTS(CT)
-      PARAMETER (NX=64,NY=64,NZ=64,NY1=NY+1)
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-      character*3  CT
-      character*4  FILE1
-      character(9) :: FileName='output/t_'                     
-      integer :: i,j,k             
-      double precision::dx,dz,Ret  
-      double precision::Q_c(1:NZ,1:NX,1:NY)        
+      SUBROUTINE SBRDTS(CT,istep,tstep)
+      use global
+      implicit none
+      integer::i,j,k
+      integer::istep
+      character(3):: CT
+      character(9) :: FileName='output/t_'
+      double precision::tstep                          
+      double precision::Q_c(1:NZ,1:NX,1:NY)       
       double precision::dudx(1:NZ,1:NX,1:NY),dudy(1:NZ,1:NX,1:NY),dudz(1:NZ,1:NX,1:NY) 
       double precision::dvdx(1:NZ,1:NX,1:NY),dvdy(1:NZ,1:NX,1:NY),dvdz(1:NZ,1:NX,1:NY) 
-      double precision::dwdx(1:NZ,1:NX,1:NY),dwdy(1:NZ,1:NX,1:NY),dwdz(1:NZ,1:NX,1:NY)                          
-      common /FILE1/FILE1 /STEP/ISTEP /TSTEP/TSTEP
-      common /U/U(NZ,NX,NY) /V/V(NZ,NX,0:NY) /W/W(NZ,NX,NY)
-      common /P/P(NZ,NX,NY)                                 
-      common /Y/YV(0:NY),YP(0:NY1)    
-      common /IP/IP(NX) /IM/IM(NX) /KP/KP(NZ) /KM/KM(NZ)  
-      common /DY/DY(NY)                
-
-      Ret=300.d0
-      dx = 18.d0/Ret
-      dz = 9.d0/Ret
+      double precision::dwdx(1:NZ,1:NX,1:NY),dwdy(1:NZ,1:NX,1:NY),dwdz(1:NZ,1:NX,1:NY)                            
 
 !********************************************************************************************************
 !*       calculate Q-criterion of velocity gradient (Second invariant of the velocity gradient tensor)  * 
