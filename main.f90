@@ -20,7 +20,7 @@ module global
 
    implicit none
    !!!!!!!!!!!!!!!!!!!!!!     input    parameter   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   integer,parameter:: NX=96,NY=96,NZ=96,NY1=NY+1  !! grid number of each direction. NY must be  even number.
+   integer,parameter:: NX=64,NY=64,NZ=64,NY1=NY+1  !! grid number of each direction. NY must be  even number.
    integer::ip(1:NX),im(1:NX),kp(1:NZ),km(1:NZ)    !! identify the neighbouring point(for periodic boundary)
    double precision, parameter::dt=  1.0d-4        !! time step
    double precision, parameter::Ret = 300.d0       !! Rynolds number
@@ -35,7 +35,7 @@ module global
    double precision::D0VM(1:NY-1),D0VP(1:NY-1)
    double precision::D1VM(0:NY),D1VP(0:NY)
    double precision::D0PM(1:NY),D0PP(1:NY)          !          these are FDM operator,  
-   double precision::D1PM(1:NY),D1PP(1:NY)          !          defined in subroutine SBRMSH
+   double precision::D1PM(1:NY),D1PP(1:NY)          !          defined in subroutine mesh_parameter
    double precision::D2VM(1:NY-1),D2V0(1:NY-1),D2VP(1:NY-1)
    double precision::D2P0(1:NY),D2PP(1:NY-1),D2PM(2:NY)
    double precision::DPP0(1:NY),DPPP(1:NY-1),DPPM(2:NY)
@@ -99,8 +99,8 @@ end module global
          istop=iskip*isave   
          icount=0
          ICT=0
-      call SBRMSH 
-      call SBRDTR(CT(ICT),file1)    
+      call mesh_parameter 
+      call read_initial (CT(ICT),file1)    
       write( 6,1000)
       call SBRUMR       
       call SBRST1 
@@ -114,17 +114,17 @@ end module global
 
       !!! main loop  
       do
-         call SBRCON 
-         call SBRVIS 
+         call convection 
+         call viscous
          if(icount >= 1) then                      
-            call SBRPRE(1.5d0,-0.5d0)               
+            call prediction(1.5d0,-0.5d0)               
          else
-            call SBRPRE(1.0d0, 0.0d0)
+            call prediction(1.0d0, 0.0d0)
          end if
-         call SBRRHP                         
+         call RHSofPOISSON                         
          ipstop=20
-         call SBRSOR(ipstop)       
-         call SBRCOR               
+         call SORscheme(ipstop)       
+         call correction               
 
          icount = icount + 1                                   
          istep  = istart + icount
@@ -140,7 +140,7 @@ end module global
 
          if(mod(istep,iskip) == 0) then    
             ICT=ICT+1
-            call SBRDTS(CT(ICT),istep,tstep)
+            call save_data(CT(ICT),istep,tstep)
          end if
 
          if(icount >= istop) exit
@@ -157,14 +157,13 @@ end module global
 ! *     SBR. MSH  :  MESH PARAMETERS                                  *
 ! *********************************************************************
 
-      SUBROUTINE SBRMSH 
+      subroutine mesh_parameter 
       use global
       implicit none
-
       call define_xz
 
-      call MESHY 
-      call MESHXZ 
+      call mesh_y 
+      call mesh_xz
 
       WRITE(6,1000) NX,LX,dx,Ret*LX,Ret*dx,NZ,LZ,dz,Ret*LZ,Ret*dz  &
       ,NY,1.,DY(1),DY(NY/2),Ret*DY(1),Ret*DY(NY/2),YP(1),Ret*YP(1)  &
@@ -189,7 +188,7 @@ end module global
       end subroutine
 !---------------------------------------------------------------------
 !-----  Mesh generation .....  for X(mainstream direction), Z directions (across the main stream)  ------------------
-      SUBROUTINE MESHXZ 
+      subroutine mesh_xz 
       use global
       implicit none
       integer:: i,k
@@ -212,7 +211,7 @@ end module global
       end subroutine
 !---------------------------------------------------------------------
 !-----  Mesh generation .....  for Y direction (wall-wall) ----------------------
-      SUBROUTINE MESHY 
+      subroutine mesh_y 
       use global
       implicit none
       integer::j
@@ -352,7 +351,7 @@ end module global
 ! *     SBR. DTR  :  DATA READ                                        *
 ! *********************************************************************
 
-      SUBROUTINE SBRDTR(CT,file1)
+      subroutine read_initial(CT,file1)
       use global
       implicit none
       character(3)::CT
@@ -388,7 +387,7 @@ end module global
 ! *     SBR. CON  :  NONLINEAR TERM                                   *
 ! *********************************************************************
 
-      SUBROUTINE SBRCON 
+      subroutine convection 
       use global
       implicit none
 
@@ -529,7 +528,7 @@ end module global
 ! *     SBR. VIS  :  VISCOUS TERM                                     *
 ! *********************************************************************
 
-      SUBROUTINE SBRVIS 
+      subroutine viscous
       use global
       implicit none
       integer::i,j,k
@@ -585,7 +584,7 @@ end module global
 ! *     SBR. PRE  :  PREDICTION STEP                                  *
 ! *********************************************************************
 
-      SUBROUTINE SBRPRE(AB,BB)
+      subroutine prediction(AB,BB)
       use global
       implicit none
       integer::i,j,k
@@ -622,7 +621,7 @@ end module global
 
 ! --- R.H.S. FOR SCALER POTANTIAL -------------------------------------
       !!!calculate right hand side of poisson Eq
-      SUBROUTINE SBRRHP  
+      subroutine RHSofPOISSON  
       use global                
       implicit none
       integer::i,j,k
@@ -642,7 +641,7 @@ end module global
 ! *     SBR. SOR  :  S.O.R. SCHEME FOR POISSON EQ.                    *
 ! *********************************************************************
 
-      SUBROUTINE SBRSOR(ISOR)  
+      subroutine SORscheme(ISOR)  
       use global                                   
       implicit none
       integer::ISOR
@@ -710,7 +709,7 @@ end module global
 ! *     SBR. COR  :  CORRECTION STEP                                  *
 ! *********************************************************************  
 
-      SUBROUTINE SBRCOR 
+      subroutine correction
       use global
       implicit none
       integer::i,j,k
@@ -853,7 +852,7 @@ end module global
 ! *     SBR. DTS  :  DATA SAVE         and calculate Q_criterion      *
 ! *********************************************************************
 
-      SUBROUTINE SBRDTS(CT,istep,tstep)
+      subroutine save_data(CT,istep,tstep)
       use global
       implicit none
       integer::i,j,k
