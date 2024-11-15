@@ -20,10 +20,10 @@ module global
 
    implicit none
    !!!!!!!!!!!!!!!!!!!!!!     input    parameter   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   integer,parameter:: NX=64,NY=64,NZ=64,NY1=NY+1  !! grid number of each direction. NY must be  even number.
+   integer,parameter:: NX=64,NY=64,NZ=64,NY1=NY+1  !! grid counts of each direction. NY must be  even number.
    integer::ip(1:NX),im(1:NX),kp(1:NZ),km(1:NZ)    !! identify the neighbouring point(for periodic boundary)
    double precision, parameter::dt=  1.0d-4        !! time step
-   double precision, parameter::Ret = 300.d0       !! Rynolds number
+   double precision, parameter::Ret = 300.d0       !! Rynolds number based on friction velocity
    double precision, parameter::dx = 18.d0/Ret     !! grid size of x direction.
    double precision, parameter::dz = 9.d0/Ret      !! grid size of z direction.
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -103,8 +103,8 @@ end module global
       call read_initial (CT(ICT),file1)    
       write( 6,1000)
       call SBRUMR       
-      call SBRST1 
-      call SBRCHK 
+      call statistics 
+      call check 
       write( 6,1100) ISTART,TSTEP,ITRP,POIERR,DIVX,COMX,  &        
           UME,UMX,INT(Ret*UME),INT(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
  1000 FORMAT(3X,4HSTEP,7X,1HT,1X,4HITRP,4X,6HPOIerr,4X,6HDIVmax  &
@@ -132,8 +132,8 @@ end module global
 
          if(mod(istep,10) == 0 .OR. icount <= 10) then
             call SBRUMR 
-            call SBRST1 
-            call SBRCHK 
+            call statistics 
+            call check 
             write( 6,1100) istep,tstep,ITRP,POIERR,DIVX,COMX,  &
                UME,UMX,int(Ret*UME),int(Ret*UMX),ENE,URMSX,URMSC,VRMSC,WRMSC
          end if
@@ -241,15 +241,15 @@ end module global
       end subroutine
 !-----------------------------------------------------------------------
 !---- FDM operators at V points using data on P points and INSIDE walls 
-      SUBROUTINE MDQ1VN 
+      subroutine MDQ1VN 
       use global
       implicit none
       integer::j
       double precision::dyv
       do j = 1,NY-1
-         DYV=YP(J+1)-YP(J)
-         D1VNM(J)=-1.d0/DYV
-         D1VNP(J)= 1.d0/DYV
+         DYV=YP(j+1)-YP(j)
+         D1VNM(j)=-1.d0/DYV
+         D1VNP(j)= 1.d0/DYV
       end do
 !    ----- For the Neumann B.C. at the wall (DP/DY=0) for Pressure
       D1VNM(0)= 0.d0
@@ -261,7 +261,7 @@ end module global
 
 !-----------------------------------------------------------------------
 !---- FDM operators at V points using data on P points and AT walls ----
-      SUBROUTINE MDQ1VD 
+      subroutine MDQ1VD 
       use global
       implicit none
       integer::j
@@ -286,7 +286,7 @@ end module global
       end
 !-----------------------------------------------------------------------
 !---  FDM operators for velocity at P points using data on V points ----
-      SUBROUTINE MDQ1P 
+      subroutine MDQ1P 
       use global
       implicit none
       integer::j
@@ -302,40 +302,40 @@ end module global
       end
 !-----------------------------------------------------------------------
 !---  FDM operators for viscous terms at V points  ---------------------
-      SUBROUTINE MDQ2V 
+      subroutine MDQ2V 
       use global
       implicit none 
       integer::j
       do j=1,Ny-1
-         D2VM(J)=D1VM(J)*D1PM(J)
-         D2V0(J)=D1VM(J)*D1PP(J)+D1VP(J)*D1PM(J+1)
-         D2VP(J)=D1VP(J)*D1PP(J+1)
+         D2VM(j) = D1VM(j)*D1PM(j)
+         D2V0(j) = D1VM(j)*D1PP(j) + D1VP(j)*D1PM(j+1)
+         D2VP(j) = D1VP(j)*D1PP(j+1)
       end do
       return
       end
 !-----------------------------------------------------------------------
 !---  FDM operators for viscous terms at P points  ---------------------
-      SUBROUTINE MDQ2PV 
+      subroutine MDQ2PV 
       use global
       implicit none
       integer::j
       j = 1
-      D2P0(J)=D1PM(J)*D1VM(J-1)+D1PP(J)*D1VM(J)
-      D2PP(J)=D1PM(J)*D1VP(J-1)+D1PP(J)*D1VP(J)
+      D2P0(j) = D1PM(j)*D1VM(j-1) + D1PP(j)*D1VM(j)
+      D2PP(j) = D1PM(j)*D1VP(j-1) + D1PP(j)*D1VP(j)
       do j = 2,NY-1
-         D2PM(J)=D1PM(J)*D1VM(J-1)
-         D2P0(J)=D1PM(J)*D1VP(J-1)+D1PP(J)*D1VM(J)
-         D2PP(J)=                  D1PP(J)*D1VP(J)
+         D2PM(j) = D1PM(j)*D1VM(j-1)
+         D2P0(j) = D1PM(j)*D1VP(j-1) + D1PP(j)*D1VM(j)
+         D2PP(j) =                     D1PP(j)*D1VP(j)
       end do
-      J=NY
-      D2PM(J)=D1PM(J)*D1VM(J-1)+D1PP(J)*D1VM(J)
-      D2P0(J)=D1PM(J)*D1VP(J-1)+D1PP(J)*D1VP(J)
+      j = NY
+      D2PM(j) = D1PM(j)*D1VM(j-1) + D1PP(j)*D1VM(j)
+      D2P0(j) = D1PM(j)*D1VP(j-1) + D1PP(j)*D1VP(j)
       return
       end
 
 !-----------------------------------------------------------------------
 !---  FDM operators for pressure's Poisson equation  -----------------
-      SUBROUTINE MDQ2PP 
+      subroutine MDQ2PP 
       use global
       implicit none
       integer::j
@@ -361,19 +361,19 @@ end module global
 
       open(10,file=file1//CT//'u.d',status='old',form='formatted')     
          read(10,1000) istart,tstep           
-         read(10,2000) U
+         read(10,2000) u
       close(10)
       open(10,file=file1//CT//'v.d',status='old',form='formatted')
          read(10,1000) istart,tstep
-         read(10,2000) V
+         read(10,2000) v
       close(10)
       open(10,file=file1//CT//'w.d',status='old',form='formatted')
          read(10,1000) istart,tstep
-         read(10,2000) W
+         read(10,2000) w
       close(10)
       open(10,file=FILE1//CT//'p.d',status='old',form='formatted')
          read(10,1000) istart,tstep
-         read(10,3000) P
+         read(10,3000) p
       close(10)
  1000 format(I10,F12.6)
  2000 format(8F10.6)   
@@ -391,14 +391,14 @@ end module global
       use global
       implicit none
 
-      call SBRNLU 
-      call SBRNLV 
-      call SBRNLW 
+      call convection1 
+      call convection2 
+      call convection3 
       return
       end
 ! ----------------------------------------------------------------------
       !!!! calculate first component of convection term ( = UF)
-      SUBROUTINE SBRNLU 
+      subroutine convection1 
       use global
       implicit none
       integer::i,j,k
@@ -408,8 +408,8 @@ end module global
       do j = 1, Ny
          do i = 1, Nx
             do K=1, Nz
-               CX(K,I,J)=-(U(K,IM(I),J)+U(K,I,J))*(-U(K,IM(I),J)+U(K,I,J))/(2.d0*dx)  ! u(du/dx)
-               CZ(K,I,J)=-(W(K,I,J)+W(K,IP(I),J))*(-U(K,I,J)+U(KP(K),I,J))/(2.d0*dz)  ! w(du/dz)
+               CX(k,i,j)=-(U(k,IM(I),j)+u(k,i,j))*(-u(k,IM(I),j)+u(k,i,j))/(2.d0*dx)  ! u(du/dx)
+               CZ(k,i,j)=-(W(k,i,j)+w(k,IP(I),j))*(-u(k,i,j)+u(KP(k),i,j))/(2.d0*dz)  ! w(du/dz)
             end do
          end do
       end do
@@ -442,7 +442,7 @@ end module global
       end
 ! ----------------------------------------------------------------------
       !!!! calculate second component of convection term ( = VF)
-      SUBROUTINE SBRNLV 
+      subroutine convection2 
       use global
       implicit none
       integer::i,j,k
@@ -479,7 +479,7 @@ end module global
       end
 ! ----------------------------------------------------------------------
       !!! calculate third component of convection term ( = WF)
-      SUBROUTINE SBRNLW 
+      subroutine convection3 
       use global
       implicit none
       integer::i,j,k
@@ -740,7 +740,7 @@ end module global
 ! *     SBR. UMR  :  MEAN & RMS VALUES                                *
 ! *********************************************************************
 
-      SUBROUTINE SBRUMR       
+      subroutine SBRUMR       
       use global             
       implicit none
       integer::i,j,k
@@ -754,10 +754,10 @@ end module global
          SUMW2=0.d0
          do i = 1, NX
             do k = 1, NZ
-               SUMU1=SUMU1+U(K,I,J)
-               SUMU2=SUMU2+U(K,I,J)**2
-               SUMW1=SUMW1+W(K,I,J)
-               SUMW2=SUMW2+W(K,I,J)**2
+               SUMU1 = SUMU1 + u(k,i,j)
+               SUMU2 = SUMU2 + u(k,i,j)**2
+               SUMW1 = SUMW1 + w(k,i,j)
+               SUMW2 = SUMW2 + w(k,i,j)**2
             end do
          end do
          UM(j) = arxz*SUMU1
@@ -788,7 +788,7 @@ end module global
 ! *     SBR. STT  :  TURBULENCE STATISTICS                            *
 ! *********************************************************************
 
-      SUBROUTINE SBRST1 
+      subroutine statistics 
       use global
       implicit none
       integer::j
@@ -822,7 +822,7 @@ end module global
 ! *     SBR. CHK  :  CHECK of DIVERGENCE and COURANT-NUMBER           *
 ! *********************************************************************
 
-      SUBROUTINE SBRCHK 
+      subroutine check 
       use global
       implicit none
       integer::i,j,k
