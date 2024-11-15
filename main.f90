@@ -19,18 +19,18 @@
 module global              
 
    implicit none
-   !!!!!!!!!!!!!!!!!!!!!!     input    parameter   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!     input    parameter   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    integer,parameter:: NX=64,NY=64,NZ=64,NY1=NY+1  !! grid counts of each direction. NY must be  even number.
    integer::ip(1:NX),im(1:NX),kp(1:NZ),km(1:NZ)    !! identify the neighbouring point(for periodic boundary)
    double precision, parameter::dt=  1.0d-4        !! time step
    double precision, parameter::Ret = 300.d0       !! Rynolds number based on friction velocity
    double precision, parameter::dx = 18.d0/Ret     !! grid size of x direction.
    double precision, parameter::dz = 9.d0/Ret      !! grid size of z direction.
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    integer::itrp
    double precision::poierr,divx,comx,ume,umx,ene   !  these are calculated values displayed on the console
    double precision::URMSX,URMSC,VRMSC,WRMSC
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    double precision::D1VNM(0:NY),D1VNP(0:NY)
    double precision::D0VM(1:NY-1),D0VP(1:NY-1)
    double precision::D1VM(0:NY),D1VP(0:NY)
@@ -39,7 +39,7 @@ module global
    double precision::D2VM(1:NY-1),D2V0(1:NY-1),D2VP(1:NY-1)
    double precision::D2P0(1:NY),D2PP(1:NY-1),D2PM(2:NY)
    double precision::DPP0(1:NY),DPPP(1:NY-1),DPPM(2:NY)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    double precision::yv(0:NY)                      
    double precision::yp(0:NY1)                     
    double precision::dy(1:NY)
