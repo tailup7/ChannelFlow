@@ -1,7 +1,7 @@
 *.d
 *.exe
+*.txt
+*.mod
 a/
 output/
-memo.txt
 test/
-*.mod
