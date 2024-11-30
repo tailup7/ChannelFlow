@@ -33,7 +33,7 @@ module global
                                                    !!
    integer,parameter:: iskip = 40                  !! output file is maked in every iskip
    integer,parameter:: isave = 100                 !! isave means how many times output file is maked.
-   double precision, parameter::dt=  1.0d-4        !! time step
+   double precision, parameter::dt=  1.0d-4        !! delta t 
                                                    !!    total iteration counts of calculation is  iskip * isave (=istop)  
                                                    !!    end time T is dt * iskip * istop.  
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    Eg, with above parameters, end time T = 0.0001*40*100 = 0.4 
