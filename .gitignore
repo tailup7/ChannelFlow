@@ -2,3 +2,6 @@
 *.exe
 a/
 output/
+memo.txt
+test/
+*.mod

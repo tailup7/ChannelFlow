@@ -16,8 +16,8 @@
         do i = 1, NX
           do k = 1, NZ
             U(k, i, j)=1
-            W(k, i, j)=0.01*(65-I) 
-            P(k, i, j)=100-I
+            W(k, i, j)=0.01*(65-i) 
+            P(k, i, j)=100-i
           end do
         end do
     end do

@@ -19,18 +19,35 @@
 module global              
 
    implicit none
-   !!!!!!!!!!!!!!!!!!!!!!     input    parameter   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!         input  parameter      !!!!!!!!!!!!
    integer,parameter:: NX=64,NY=64,NZ=64,NY1=NY+1  !! grid counts of each direction. NY must be  even number.
-   integer::ip(1:NX),im(1:NX),kp(1:NZ),km(1:NZ)    !! identify the neighbouring point(for periodic boundary)
-   double precision, parameter::dt=  1.0d-4        !! time step
-   double precision, parameter::Ret = 300.d0       !! Rynolds number based on friction velocity
+   double precision, parameter::Ret = 300.d0       !! Rynolds number based on friction velocity.
    double precision, parameter::dx = 18.d0/Ret     !! grid size of x direction.
    double precision, parameter::dz = 9.d0/Ret      !! grid size of z direction.
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   integer::itrp
-   double precision::poierr,divx,comx,ume,umx,ene   !  these are calculated values displayed on the console
-   double precision::URMSX,URMSC,VRMSC,WRMSC
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                                   !!    Region length is grid size * grid counts
+                                                   !!    Eg, with above parameters, length of X direction LX = dx*NX = 3.84
+                                                   !!       On the other hand, in y direction, 
+                                                   !!       y-coordinate of upper and lower boundary is 
+                                                   !!       pre-determined (this is also input parameter as below),
+                                                   !!       so changing NY means changing grid size of y direction. 
+                                                   !!
+   integer,parameter:: iskip = 40                  !! output file is maked in every iskip
+   integer,parameter:: isave = 100                 !! isave means how many times output file is maked.
+   double precision, parameter::dt=  1.0d-4        !! time step
+                                                   !!    total iteration counts of calculation is  iskip * isave (=istop)  
+                                                   !!    end time T is dt * iskip * istop.  
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    Eg, with above parameters, end time T = 0.0001*40*100 = 0.4 
+
+   !!!!!!!!
+   !! calculated values displayed on the console   !! 
+   integer::itrp                                    ! 
+   double precision::poierr,divx,comx,ume,umx,ene   !  
+   double precision::URMSX,URMSC,VRMSC,WRMSC        !
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   !!!!!!!!!!!
+   integer::ip(1:NX),im(1:NX),kp(1:NZ),km(1:NZ)    !! identify the neighbouring point(for periodic boundary)
+   !!!!!!!!!!!
    double precision::D1VNM(0:NY),D1VNP(0:NY)
    double precision::D0VM(1:NY-1),D0VP(1:NY-1)
    double precision::D1VM(0:NY),D1VP(0:NY)
@@ -39,7 +56,7 @@ module global
    double precision::D2VM(1:NY-1),D2V0(1:NY-1),D2VP(1:NY-1)
    double precision::D2P0(1:NY),D2PP(1:NY-1),D2PM(2:NY)
    double precision::DPP0(1:NY),DPPP(1:NY-1),DPPM(2:NY)
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   !!!!!!!!!!!
    double precision::yv(0:NY)                      
    double precision::yp(0:NY1)                     
    double precision::dy(1:NY)
@@ -76,7 +93,7 @@ end module global
       use global
       implicit none
       integer:: istart,istep,ipstop
-      integer::iskip,isave,istop,icount,ict
+      integer::istop,icount,ict
       character(3)::CT(0:100)
       character(4)::file1
       double precision ::tstep
@@ -94,9 +111,7 @@ end module global
       '091','092','093','094','095','096','097','098','099','100'/
 
          file1='dns2'
-         iskip = 40            
-         isave = 100
-         istop=iskip*isave   
+         istop = iskip*isave   
          icount=0
          ICT=0
       call mesh_parameter 
@@ -849,7 +864,7 @@ end module global
       end
 
 ! *********************************************************************
-! *     SBR. DTS  :  DATA SAVE         and calculate Q_criterion      *
+! *  DATA SAVE         and calculate Q_criterion      *
 ! *********************************************************************
 
       subroutine save_data(CT,istep,tstep)
